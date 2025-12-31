@@ -1,8 +1,7 @@
-version: '3.8'
-
 services:
   doc-gen-service:
     build: .
+    image: doc-gen-service:latest-amd64
     container_name: doc-gen-service
     ports:
       - "8081:8081"

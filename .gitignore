@@ -52,5 +52,5 @@ Thumbs.db
 application-local.yml
 application-local.properties
 
-# Templates (optional - remove if you want to track templates)
-# templates/
+# Templates - 模板文件不提交到仓库，运行时动态上传或挂载
+templates/
