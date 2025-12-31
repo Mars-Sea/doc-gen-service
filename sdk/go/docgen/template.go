@@ -298,3 +298,54 @@ func (c *Client) DeleteTemplate(templateName string) (*DeleteResponse, error) {
 	return &result, nil
 }
 
+// DownloadTemplate 下载模板文件
+//
+// templateName: 模板文件名
+//
+// 返回模板文件的字节数组
+func (c *Client) DownloadTemplate(templateName string) ([]byte, error) {
+	// 构建 HTTP 请求
+	url := fmt.Sprintf("%s/api/v1/template/download/%s", c.BaseURL, templateName)
+	req, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	// 发送请求
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to send request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	// 读取响应
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response: %w", err)
+	}
+
+	// 处理错误响应
+	if resp.StatusCode != http.StatusOK {
+		var errResp ErrorResponse
+		if err := json.Unmarshal(respBody, &errResp); err != nil {
+			return nil, fmt.Errorf("request failed with status %d: %s", resp.StatusCode, string(respBody))
+		}
+		return nil, &errResp
+	}
+
+	return respBody, nil
+}
+
+// SaveTemplate 下载模板并保存到本地文件
+//
+// templateName: 远程模板文件名
+// outputPath: 本地保存路径
+func (c *Client) SaveTemplate(templateName, outputPath string) error {
+	content, err := c.DownloadTemplate(templateName)
+	if err != nil {
+		return err
+	}
+
+	return os.WriteFile(outputPath, content, 0644)
+}
+

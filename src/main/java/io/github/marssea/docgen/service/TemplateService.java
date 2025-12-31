@@ -166,4 +166,36 @@ public class TemplateService {
         log.info("Template deleted successfully: {}", templateName);
         return true;
     }
+
+    /**
+     * 下载模板文件
+     * <p>
+     * 读取模板文件内容并返回字节数组。
+     *
+     * @param templateName 模板文件名
+     * @return 文件内容字节数组
+     * @throws IOException              文件读取异常
+     * @throws IllegalArgumentException 文件名无效或文件不存在
+     */
+    public byte[] downloadTemplate(String templateName) throws IOException {
+        // 校验文件名
+        if (templateName == null || templateName.isBlank()) {
+            throw new IllegalArgumentException("模板文件名不能为空");
+        }
+
+        // 防止路径遍历攻击
+        if (templateName.contains("..") || templateName.contains("/") || templateName.contains("\\")) {
+            throw new IllegalArgumentException("非法的文件名");
+        }
+
+        Path templatePath = getTemplateDir().resolve(templateName);
+
+        // 检查文件是否存在
+        if (!Files.exists(templatePath) || !Files.isRegularFile(templatePath)) {
+            throw new IllegalArgumentException("模板文件不存在: " + templateName);
+        }
+
+        log.info("Template downloaded: {}", templateName);
+        return Files.readAllBytes(templatePath);
+    }
 }

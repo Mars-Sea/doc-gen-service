@@ -74,6 +74,8 @@ func main() {
 | `UploadTemplateFromBytes(data, filename)` | `*UploadResponse, error` | Upload from bytes |
 | `ListTemplates()` | `[]string, error` | Get template names |
 | `ListTemplatesWithDetails()` | `*ListTemplatesResponse, error` | Get templates with count |
+| `DownloadTemplate(templateName)` | `[]byte, error` | Download template content |
+| `SaveTemplate(templateName, outputPath)` | `error` | Download and save to file |
 | `DeleteTemplate(templateName)` | `*DeleteResponse, error` | Delete template |
 
 ## Examples
@@ -112,6 +114,12 @@ templates, _ := client.ListTemplates()
 for _, t := range templates {
     fmt.Println(t)
 }
+
+// Download
+content, _ := client.DownloadTemplate("template.docx")
+os.WriteFile("local.docx", content, 0644)
+// Or use SaveTemplate
+client.SaveTemplate("template.docx", "./local.docx")
 
 // Delete
 client.DeleteTemplate("old-template.docx")

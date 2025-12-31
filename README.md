@@ -69,6 +69,12 @@ Content-Type: multipart/form-data
 
 # List templates
 GET /api/v1/template/list
+
+# Download template
+GET /api/v1/template/download/{templateName}
+
+# Delete template
+DELETE /api/v1/template/{templateName}
 ```
 
 ## 🔧 Configuration
@@ -81,7 +87,7 @@ GET /api/v1/template/list
 ## 📦 Go SDK
 
 ```bash
-go get github.com/Mars-Sea/doc-gen-service/sdk/go@v0.0.1
+go get github.com/Mars-Sea/doc-gen-service/sdk/go@v0.0.2
 ```
 
 ```go

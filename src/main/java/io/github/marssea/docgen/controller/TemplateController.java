@@ -128,4 +128,39 @@ public class TemplateController {
                                         "fileName", templateName));
                 }
         }
+
+        /**
+         * 下载模板文件
+         * <p>
+         * 返回模板文件的二进制内容。
+         *
+         * @param templateName 模板文件名
+         * @return 模板文件二进制流
+         * @throws IOException 文件读取异常
+         */
+        @Operation(summary = "下载模板文件", description = "下载指定的模板文件。返回文件二进制流。")
+        @ApiResponses(value = {
+                        @ApiResponse(responseCode = "200", description = "下载成功", content = @Content(mediaType = "application/octet-stream")),
+                        @ApiResponse(responseCode = "400", description = "文件名无效或文件不存在", content = @Content(schema = @Schema(implementation = Map.class))),
+                        @ApiResponse(responseCode = "500", description = "服务器内部错误", content = @Content(schema = @Schema(implementation = Map.class)))
+        })
+        @GetMapping("/download/{templateName}")
+        public ResponseEntity<byte[]> downloadTemplate(
+                        @PathVariable String templateName) throws IOException {
+
+                log.info("Received template download request, templateName: {}", templateName);
+
+                byte[] content = templateService.downloadTemplate(templateName);
+
+                // 根据文件扩展名设置 Content-Type
+                String contentType = templateName.toLowerCase().endsWith(".xlsx")
+                                ? "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                                : "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+
+                return ResponseEntity.ok()
+                                .header("Content-Type", contentType)
+                                .header("Content-Disposition", "attachment; filename=\"" + templateName + "\"")
+                                .contentLength(content.length)
+                                .body(content);
+        }
 }

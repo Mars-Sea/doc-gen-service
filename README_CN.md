@@ -75,6 +75,12 @@ Content-Type: multipart/form-data
 
 # 获取模板列表
 GET /api/v1/template/list
+
+# 下载模板
+GET /api/v1/template/download/{templateName}
+
+# 删除模板
+DELETE /api/v1/template/{templateName}
 ```
 
 ## 🔧 配置项
@@ -87,7 +93,7 @@ GET /api/v1/template/list
 ## 📦 Go SDK
 
 ```bash
-go get github.com/Mars-Sea/doc-gen-service/sdk/go@v0.0.1
+go get github.com/Mars-Sea/doc-gen-service/sdk/go@v0.0.2
 ```
 
 ```go
