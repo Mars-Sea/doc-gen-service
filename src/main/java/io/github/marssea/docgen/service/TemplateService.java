@@ -126,4 +126,44 @@ public class TemplateService {
         Path templatePath = getTemplateDir().resolve(templateName);
         return Files.exists(templatePath) && Files.isRegularFile(templatePath);
     }
+
+    /**
+     * 删除模板文件
+     * <p>
+     * 从模板目录中删除指定的模板文件。
+     *
+     * @param templateName 模板文件名
+     * @return 是否删除成功
+     * @throws IOException              文件删除异常
+     * @throws IllegalArgumentException 文件名无效
+     */
+    public boolean deleteTemplate(String templateName) throws IOException {
+        // 校验文件名
+        if (templateName == null || templateName.isBlank()) {
+            throw new IllegalArgumentException("模板文件名不能为空");
+        }
+
+        // 防止路径遍历攻击
+        if (templateName.contains("..") || templateName.contains("/") || templateName.contains("\\")) {
+            throw new IllegalArgumentException("非法的文件名");
+        }
+
+        Path templatePath = getTemplateDir().resolve(templateName);
+
+        // 检查文件是否存在
+        if (!Files.exists(templatePath)) {
+            log.warn("Template not found for deletion: {}", templateName);
+            return false;
+        }
+
+        // 检查是否为普通文件
+        if (!Files.isRegularFile(templatePath)) {
+            throw new IllegalArgumentException("只能删除文件，不能删除目录");
+        }
+
+        // 删除文件
+        Files.delete(templatePath);
+        log.info("Template deleted successfully: {}", templateName);
+        return true;
+    }
 }

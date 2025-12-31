@@ -75,6 +75,56 @@ func NewClientWithTimeout(baseURL string, timeout time.Duration) *Client {
 	}
 }
 
+// HealthResponse 健康检查响应
+type HealthResponse struct {
+	Status string `json:"status"`
+}
+
+// Health 检查服务健康状态
+//
+// 返回服务状态，正常时 Status 为 "UP"
+func (c *Client) Health() (*HealthResponse, error) {
+	url := fmt.Sprintf("%s/actuator/health", c.BaseURL)
+	req, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to send request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response: %w", err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("health check failed with status %d: %s", resp.StatusCode, string(respBody))
+	}
+
+	var result HealthResponse
+	if err := json.Unmarshal(respBody, &result); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &result, nil
+}
+
+// IsHealthy 检查服务是否健康
+//
+// 返回 true 表示服务正常，false 表示服务不可用
+func (c *Client) IsHealthy() bool {
+	health, err := c.Health()
+	if err != nil {
+		return false
+	}
+	return health.Status == "UP"
+}
+
+
 // GenerateWord 生成 Word 文档
 //
 // templateName: 模板文件名（需包含扩展名）

@@ -35,61 +35,97 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class TemplateController {
 
-    private final TemplateService templateService;
+        private final TemplateService templateService;
 
-    /**
-     * 上传模板文件
-     * <p>
-     * 将模板文件上传到服务器的模板目录。
-     * 支持 .docx 和 .xlsx 格式。如果文件名已存在，将会覆盖。
-     *
-     * @param file 上传的模板文件
-     * @return 上传结果，包含保存后的文件名
-     * @throws IOException 文件处理异常
-     */
-    @Operation(summary = "上传模板文件", description = "上传 Word (.docx) 或 Excel (.xlsx) 模板文件到服务器。如果文件已存在将会覆盖。")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "上传成功", content = @Content(schema = @Schema(implementation = Map.class))),
-            @ApiResponse(responseCode = "400", description = "请求参数无效（文件为空或格式不支持）", content = @Content(schema = @Schema(implementation = Map.class))),
-            @ApiResponse(responseCode = "500", description = "服务器内部错误", content = @Content(schema = @Schema(implementation = Map.class)))
-    })
-    @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<Map<String, Object>> uploadTemplate(
-            @RequestParam("file") MultipartFile file) throws IOException {
+        /**
+         * 上传模板文件
+         * <p>
+         * 将模板文件上传到服务器的模板目录。
+         * 支持 .docx 和 .xlsx 格式。如果文件名已存在，将会覆盖。
+         *
+         * @param file 上传的模板文件
+         * @return 上传结果，包含保存后的文件名
+         * @throws IOException 文件处理异常
+         */
+        @Operation(summary = "上传模板文件", description = "上传 Word (.docx) 或 Excel (.xlsx) 模板文件到服务器。如果文件已存在将会覆盖。")
+        @ApiResponses(value = {
+                        @ApiResponse(responseCode = "200", description = "上传成功", content = @Content(schema = @Schema(implementation = Map.class))),
+                        @ApiResponse(responseCode = "400", description = "请求参数无效（文件为空或格式不支持）", content = @Content(schema = @Schema(implementation = Map.class))),
+                        @ApiResponse(responseCode = "500", description = "服务器内部错误", content = @Content(schema = @Schema(implementation = Map.class)))
+        })
+        @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+        public ResponseEntity<Map<String, Object>> uploadTemplate(
+                        @RequestParam("file") MultipartFile file) throws IOException {
 
-        log.info("Received template upload request, originalFilename: {}, size: {} bytes",
-                file.getOriginalFilename(), file.getSize());
+                log.info("Received template upload request, originalFilename: {}, size: {} bytes",
+                                file.getOriginalFilename(), file.getSize());
 
-        String savedFilename = templateService.uploadTemplate(file);
+                String savedFilename = templateService.uploadTemplate(file);
 
-        return ResponseEntity.ok(Map.of(
-                "success", true,
-                "message", "模板上传成功",
-                "fileName", savedFilename));
-    }
+                return ResponseEntity.ok(Map.of(
+                                "success", true,
+                                "message", "模板上传成功",
+                                "fileName", savedFilename));
+        }
 
-    /**
-     * 获取模板文件列表
-     * <p>
-     * 返回服务器上所有可用的模板文件名列表。
-     *
-     * @return 模板文件名列表
-     * @throws IOException 目录读取异常
-     */
-    @Operation(summary = "获取模板列表", description = "获取服务器上所有可用的模板文件名列表（包括 .docx 和 .xlsx 文件）")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "获取成功", content = @Content(schema = @Schema(implementation = Map.class))),
-            @ApiResponse(responseCode = "500", description = "服务器内部错误", content = @Content(schema = @Schema(implementation = Map.class)))
-    })
-    @GetMapping("/list")
-    public ResponseEntity<Map<String, Object>> listTemplates() throws IOException {
-        log.info("Received template list request");
+        /**
+         * 获取模板文件列表
+         * <p>
+         * 返回服务器上所有可用的模板文件名列表。
+         *
+         * @return 模板文件名列表
+         * @throws IOException 目录读取异常
+         */
+        @Operation(summary = "获取模板列表", description = "获取服务器上所有可用的模板文件名列表（包括 .docx 和 .xlsx 文件）")
+        @ApiResponses(value = {
+                        @ApiResponse(responseCode = "200", description = "获取成功", content = @Content(schema = @Schema(implementation = Map.class))),
+                        @ApiResponse(responseCode = "500", description = "服务器内部错误", content = @Content(schema = @Schema(implementation = Map.class)))
+        })
+        @GetMapping("/list")
+        public ResponseEntity<Map<String, Object>> listTemplates() throws IOException {
+                log.info("Received template list request");
 
-        List<String> templates = templateService.listTemplates();
+                List<String> templates = templateService.listTemplates();
 
-        return ResponseEntity.ok(Map.of(
-                "success", true,
-                "count", templates.size(),
-                "templates", templates));
-    }
+                return ResponseEntity.ok(Map.of(
+                                "success", true,
+                                "count", templates.size(),
+                                "templates", templates));
+        }
+
+        /**
+         * 删除模板文件
+         * <p>
+         * 从服务器上删除指定的模板文件。
+         *
+         * @param templateName 要删除的模板文件名
+         * @return 删除结果
+         * @throws IOException 文件删除异常
+         */
+        @Operation(summary = "删除模板文件", description = "从服务器上删除指定的模板文件。删除后不可恢复。")
+        @ApiResponses(value = {
+                        @ApiResponse(responseCode = "200", description = "删除成功或文件不存在", content = @Content(schema = @Schema(implementation = Map.class))),
+                        @ApiResponse(responseCode = "400", description = "请求参数无效", content = @Content(schema = @Schema(implementation = Map.class))),
+                        @ApiResponse(responseCode = "500", description = "服务器内部错误", content = @Content(schema = @Schema(implementation = Map.class)))
+        })
+        @DeleteMapping("/{templateName}")
+        public ResponseEntity<Map<String, Object>> deleteTemplate(
+                        @PathVariable String templateName) throws IOException {
+
+                log.info("Received template delete request, templateName: {}", templateName);
+
+                boolean deleted = templateService.deleteTemplate(templateName);
+
+                if (deleted) {
+                        return ResponseEntity.ok(Map.of(
+                                        "success", true,
+                                        "message", "模板删除成功",
+                                        "fileName", templateName));
+                } else {
+                        return ResponseEntity.ok(Map.of(
+                                        "success", false,
+                                        "message", "模板文件不存在",
+                                        "fileName", templateName));
+                }
+        }
 }

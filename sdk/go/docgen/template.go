@@ -246,3 +246,55 @@ func (c *Client) ListTemplatesWithDetails() (*ListTemplatesResponse, error) {
 
 	return &result, nil
 }
+
+// DeleteResponse 删除模板响应
+type DeleteResponse struct {
+	Success  bool   `json:"success"`
+	Message  string `json:"message"`
+	FileName string `json:"fileName"`
+}
+
+// DeleteTemplate 删除模板文件
+//
+// templateName: 要删除的模板文件名
+//
+// 返回删除结果
+func (c *Client) DeleteTemplate(templateName string) (*DeleteResponse, error) {
+	// 构建 HTTP 请求
+	url := fmt.Sprintf("%s/api/v1/template/%s", c.BaseURL, templateName)
+	req, err := http.NewRequest(http.MethodDelete, url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	// 发送请求
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to send request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	// 读取响应
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response: %w", err)
+	}
+
+	// 处理错误响应
+	if resp.StatusCode != http.StatusOK {
+		var errResp ErrorResponse
+		if err := json.Unmarshal(respBody, &errResp); err != nil {
+			return nil, fmt.Errorf("request failed with status %d: %s", resp.StatusCode, string(respBody))
+		}
+		return nil, &errResp
+	}
+
+	// 解析成功响应
+	var result DeleteResponse
+	if err := json.Unmarshal(respBody, &result); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &result, nil
+}
+

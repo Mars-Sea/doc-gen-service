@@ -3,3 +3,13 @@ server:
 
 docgen:
   template-path: ${TEMPLATE_PATH:./templates}
+
+# Actuator 健康检查配置
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: when_authorized

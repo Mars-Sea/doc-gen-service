@@ -12,3 +12,9 @@ services:
       - TEMPLATE_PATH=/app/templates
       - SERVER_PORT=8081
     restart: unless-stopped
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8081/actuator/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
