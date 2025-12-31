@@ -244,19 +244,11 @@ docker buildx build \
 #### 4. 分别构建并保存各架构镜像
 
 ```bash
-# 构建 x86_64 镜像
-docker buildx build \
-  --platform linux/amd64 \
-  -t doc-gen-service:latest-amd64 \
-  --load \
-  .
-
 # 构建 ARM64 镜像
-docker buildx build \
-  --platform linux/arm64 \
-  -t doc-gen-service:latest-arm64 \
-  --load \
-  .
+docker buildx build --platform linux/arm64 -t doc-gen-service:latest-arm64 --load .
+
+# 构建 AMD64 镜像
+docker buildx build --platform linux/amd64 -t doc-gen-service:latest-amd64 --load .
 ```
 
 #### 5. 创建 Manifest 合并镜像 (推送到仓库)

@@ -1,5 +1,7 @@
-# 简单 Dockerfile - 使用预编译的 JAR 文件
-FROM eclipse-temurin:17-jre-alpine
+# Doc-Gen-Service Dockerfile
+# 支持多架构构建 (amd64 / arm64)
+
+FROM eclipse-temurin:17-jre-jammy
 
 WORKDIR /app
 
