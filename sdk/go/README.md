@@ -1,14 +1,19 @@
 # Doc-Gen-Service Go SDK
 
-用于调用文档生成服务 API 的 Go 客户端库。
+[🇬🇧 English](#doc-gen-service-go-sdk) | [🇨🇳 中文](#中文文档)
 
-## 安装
+[![Go Reference](https://pkg.go.dev/badge/github.com/Mars-Sea/doc-gen-service/sdk/go.svg)](https://pkg.go.dev/github.com/Mars-Sea/doc-gen-service/sdk/go)
+[![Go Version](https://img.shields.io/badge/Go-1.20+-blue.svg)](https://go.dev/)
+
+Go client library for Doc-Gen-Service API.
+
+## Installation
 
 ```bash
-go get github.com/Mars-Sea/doc-gen-service/sdk/go/docgen
+go get github.com/Mars-Sea/doc-gen-service/sdk/go@v0.0.2
 ```
 
-## 快速开始
+## Quick Start
 
 ```go
 package main
@@ -21,109 +26,148 @@ import (
 )
 
 func main() {
-    // 创建客户端
     client := docgen.NewClient("http://localhost:8081")
     
-    // 准备数据
+    // Check health
+    if !client.IsHealthy() {
+        log.Fatal("Service unavailable")
+    }
+    
+    // Generate document
     data := map[string]any{
         "title": "My Report",
         "date":  "2025-01-01",
     }
-    
-    // 生成文档
-    doc, err := client.GenerateWord("test-template.docx", data, "my_report")
-    if err != nil {
-        log.Fatal(err)
-    }
-    
-    // 保存文件
-    os.WriteFile("my_report.docx", doc, 0644)
+    doc, _ := client.GenerateWord("template.docx", data, "report")
+    os.WriteFile("report.docx", doc, 0644)
 }
 ```
 
-## API
+## API Reference
 
-### NewClient(baseURL string) *Client
+### Client
 
-创建客户端，默认超时 30 秒。
+| Method | Description |
+|--------|-------------|
+| `NewClient(baseURL)` | Create client (30s timeout) |
+| `NewClientWithTimeout(baseURL, timeout)` | Create client with custom timeout |
 
-### NewClientWithTimeout(baseURL string, timeout time.Duration) *Client
+### Health Check
 
-创建带自定义超时的客户端。
+| Method | Returns | Description |
+|--------|---------|-------------|
+| `Health()` | `*HealthResponse, error` | Get health status details |
+| `IsHealthy()` | `bool` | Quick health check |
 
-### client.GenerateWord(templateName, data, fileName) ([]byte, error)
+### Document Generation
 
-生成 Word 文档，返回字节数组。
+| Method | Returns | Description |
+|--------|---------|-------------|
+| `GenerateWord(template, data, fileName)` | `[]byte, error` | Generate Word document |
+| `SaveWord(template, data, outputPath)` | `error` | Generate and save to file |
 
-| 参数 | 类型 | 说明 |
-|------|------|------|
-| templateName | string | 模板文件名（需包含 .docx） |
-| data | map[string]any | 渲染数据 |
-| fileName | string | 输出文件名（不含扩展名，可选） |
+### Template Management
 
-### client.SaveWord(templateName, data, outputPath) error
+| Method | Returns | Description |
+|--------|---------|-------------|
+| `UploadTemplate(filePath)` | `*UploadResponse, error` | Upload from file path |
+| `UploadTemplateFromBytes(data, filename)` | `*UploadResponse, error` | Upload from bytes |
+| `ListTemplates()` | `[]string, error` | Get template names |
+| `ListTemplatesWithDetails()` | `*ListTemplatesResponse, error` | Get templates with count |
+| `DeleteTemplate(templateName)` | `*DeleteResponse, error` | Delete template |
 
-生成并保存 Word 文档到指定路径。
+## Examples
 
-## 错误处理
+### Health Check
+
+```go
+if client.IsHealthy() {
+    fmt.Println("Service is UP")
+}
+```
+
+### Generate Document
+
+```go
+data := map[string]any{
+    "title": "Report",
+    "items": []map[string]any{
+        {"name": "Item A", "price": 100},
+        {"name": "Item B", "price": 200},
+    },
+}
+doc, _ := client.GenerateWord("template.docx", data, "output")
+os.WriteFile("output.docx", doc, 0644)
+```
+
+### Template Management
+
+```go
+// Upload
+result, _ := client.UploadTemplate("./template.docx")
+fmt.Println(result.FileName)
+
+// List
+templates, _ := client.ListTemplates()
+for _, t := range templates {
+    fmt.Println(t)
+}
+
+// Delete
+client.DeleteTemplate("old-template.docx")
+```
+
+### Error Handling
 
 ```go
 doc, err := client.GenerateWord("template.docx", data, "")
 if err != nil {
     if apiErr, ok := err.(*docgen.ErrorResponse); ok {
-        // API 返回的错误
-        fmt.Printf("Code: %s, Message: %s\n", apiErr.Code, apiErr.Message)
+        fmt.Printf("API Error: %s\n", apiErr.Message)
     } else {
-        // 网络或其他错误
         log.Fatal(err)
     }
 }
 ```
 
-## 表格循环示例
+---
 
-```go
-data := map[string]any{
-    "month": "January 2025",
-    "goods": []map[string]any{
-        {"name": "Product A", "price": 299.99},
-        {"name": "Product B", "price": 49.99},
-    },
-}
+# 中文文档
 
-doc, err := client.GenerateWord("loop-table-template.docx", data, "report")
+用于调用文档生成服务 API 的 Go 客户端库。
+
+## 安装
+
+```bash
+go get github.com/Mars-Sea/doc-gen-service/sdk/go@v0.0.2
 ```
 
-## 模板管理
-
-### 上传模板
+## 快速开始
 
 ```go
-// 从文件路径上传
-result, err := client.UploadTemplate("/path/to/template.docx")
-if err != nil {
-    log.Fatal(err)
-}
-fmt.Printf("上传成功: %s\n", result.FileName)
+client := docgen.NewClient("http://localhost:8081")
 
-// 从字节数组上传
-data, _ := os.ReadFile("template.docx")
-result, err := client.UploadTemplateFromBytes(data, "my-template.docx")
+// 检查服务健康
+if !client.IsHealthy() {
+    log.Fatal("服务不可用")
+}
+
+// 生成文档
+data := map[string]any{"title": "报告", "date": "2025-01-01"}
+doc, _ := client.GenerateWord("template.docx", data, "报告")
+os.WriteFile("报告.docx", doc, 0644)
 ```
 
-### 获取模板列表
+## 主要方法
 
-```go
-// 简单获取文件名列表
-templates, err := client.ListTemplates()
-if err != nil {
-    log.Fatal(err)
-}
-for _, name := range templates {
-    fmt.Println(name)
-}
+| 方法 | 说明 |
+|------|------|
+| `Health()` / `IsHealthy()` | 健康检查 |
+| `GenerateWord()` / `SaveWord()` | 生成文档 |
+| `UploadTemplate()` | 上传模板 |
+| `ListTemplates()` | 获取模板列表 |
+| `DeleteTemplate()` | 删除模板 |
 
-// 获取详细信息
-resp, err := client.ListTemplatesWithDetails()
-fmt.Printf("共 %d 个模板\n", resp.Count)
-```
+## License
+
+MIT
