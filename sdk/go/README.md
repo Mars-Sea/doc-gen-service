@@ -93,3 +93,37 @@ data := map[string]any{
 
 doc, err := client.GenerateWord("loop-table-template.docx", data, "report")
 ```
+
+## 模板管理
+
+### 上传模板
+
+```go
+// 从文件路径上传
+result, err := client.UploadTemplate("/path/to/template.docx")
+if err != nil {
+    log.Fatal(err)
+}
+fmt.Printf("上传成功: %s\n", result.FileName)
+
+// 从字节数组上传
+data, _ := os.ReadFile("template.docx")
+result, err := client.UploadTemplateFromBytes(data, "my-template.docx")
+```
+
+### 获取模板列表
+
+```go
+// 简单获取文件名列表
+templates, err := client.ListTemplates()
+if err != nil {
+    log.Fatal(err)
+}
+for _, name := range templates {
+    fmt.Println(name)
+}
+
+// 获取详细信息
+resp, err := client.ListTemplatesWithDetails()
+fmt.Printf("共 %d 个模板\n", resp.Count)
+```
