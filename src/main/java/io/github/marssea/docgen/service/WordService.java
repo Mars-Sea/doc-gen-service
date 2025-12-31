@@ -1,13 +1,13 @@
 package io.github.marssea.docgen.service;
 
 import com.deepoove.poi.XWPFTemplate;
+import com.deepoove.poi.config.Configure;
+import com.deepoove.poi.plugin.table.LoopRowTableRenderPolicy;
 import io.github.marssea.docgen.config.DocGenProperties;
+import io.github.marssea.docgen.exception.TemplateNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-
-import com.deepoove.poi.config.Configure;
-import com.deepoove.poi.plugin.table.LoopRowTableRenderPolicy;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -19,7 +19,18 @@ import java.util.Map;
 /**
  * Word 文档生成服务
  * <p>
- * 使用 poi-tl 库处理 Word 模板渲染
+ * 使用 <a href="http://deepoove.com/poi-tl/">poi-tl</a> 库处理 Word 模板渲染。
+ * 该服务负责加载 Word 模板文件，将传入的数据填充到模板中，并返回生成的文档二进制流。
+ * <p>
+ * 主要功能：
+ * <ul>
+ * <li>加载指定的 Word 模板文件</li>
+ * <li>自动检测集合类型数据，绑定循环表格渲染策略</li>
+ * <li>渲染模板并返回文档字节数组</li>
+ * </ul>
+ *
+ * @author Mars-Sea
+ * @since 1.0.0
  */
 @Slf4j
 @Service
@@ -30,11 +41,15 @@ public class WordService {
 
     /**
      * 根据模板和数据生成 Word 文档
+     * <p>
+     * 该方法会自动检测数据中的集合类型字段（实现 {@link Iterable} 接口的对象），
+     * 并为其绑定 {@link LoopRowTableRenderPolicy}，从而支持表格行循环渲染。
      *
-     * @param templateName 模板文件名
-     * @param data         渲染数据
+     * @param templateName 模板文件名（需包含扩展名，如 template.docx）
+     * @param data         渲染数据，Key 对应模板中的占位符，Value 为填充值
      * @return 生成的文档二进制流
-     * @throws IOException 文件读取或写入异常
+     * @throws TemplateNotFoundException 当指定的模板文件不存在时抛出
+     * @throws IOException               文件读取或写入异常
      */
     public byte[] generateWord(String templateName, Map<String, Object> data) throws IOException {
         // 构建模板文件的完整路径
@@ -44,25 +59,13 @@ public class WordService {
         // 校验模板文件是否存在
         if (!templateFile.exists()) {
             log.error("Template file not found at: {}", templatePath);
-            throw new RuntimeException("Template not found: " + templatePath);
+            throw new TemplateNotFoundException(templateName, "Template not found at: " + templatePath);
         }
 
         log.info("Generating word document using template: {}", templatePath);
 
-        // 自动检测 Collection 类型的字段，为它们绑定 LoopRowTableRenderPolicy
-        LoopRowTableRenderPolicy policy = new LoopRowTableRenderPolicy();
-        var builder = Configure.builder();
-
-        if (data != null) {
-            data.forEach((key, value) -> {
-                if (value instanceof Iterable) {
-                    log.info("Auto-binding LoopRowTableRenderPolicy for field: {}", key);
-                    builder.bind(key, policy);
-                }
-            });
-        }
-
-        Configure config = builder.build();
+        // 构建渲染配置
+        Configure config = buildRenderConfig(data);
 
         // 编译模板并渲染数据
         try (XWPFTemplate template = XWPFTemplate.compile(templateFile, config).render(data);
@@ -70,7 +73,33 @@ public class WordService {
 
             // 将渲染结果写入内存流
             template.write(out);
+            log.info("Word document generated successfully, size: {} bytes", out.size());
             return out.toByteArray();
         }
+    }
+
+    /**
+     * 构建渲染配置
+     * <p>
+     * 自动检测数据中的集合类型字段，为其绑定 {@link LoopRowTableRenderPolicy}，
+     * 使模板支持表格行循环渲染功能。
+     *
+     * @param data 渲染数据
+     * @return poi-tl 渲染配置对象
+     */
+    private Configure buildRenderConfig(Map<String, Object> data) {
+        LoopRowTableRenderPolicy policy = new LoopRowTableRenderPolicy();
+        var builder = Configure.builder();
+
+        if (data != null) {
+            data.forEach((key, value) -> {
+                if (value instanceof Iterable) {
+                    log.debug("Auto-binding LoopRowTableRenderPolicy for field: {}", key);
+                    builder.bind(key, policy);
+                }
+            });
+        }
+
+        return builder.build();
     }
 }
