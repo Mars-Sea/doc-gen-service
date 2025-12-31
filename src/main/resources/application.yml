@@ -1,0 +1,5 @@
+server:
+  port: ${SERVER_PORT:8081}
+
+docgen:
+  template-path: ${TEMPLATE_PATH:./templates}

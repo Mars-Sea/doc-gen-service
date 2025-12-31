@@ -1,0 +1,15 @@
+version: '3.8'
+
+services:
+  doc-gen-service:
+    build: .
+    container_name: doc-gen-service
+    ports:
+      - "8081:8081"
+    volumes:
+      # 将宿主机的模板目录挂载到容器中
+      - ./templates:/app/templates
+    environment:
+      - TEMPLATE_PATH=/app/templates
+      - SERVER_PORT=8081
+    restart: unless-stopped

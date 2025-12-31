@@ -1,0 +1,24 @@
+# 忽略源码（已编译为 JAR）
+src/
+
+# Maven
+.mvn/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# 模板文件（Docker 运行时挂载）
+templates/
+
+# 日志
+*.log
+logs/
+
+# 忽略 target 下的非 JAR 文件
+target/*.original
+target/classes/
+target/generated-sources/
+target/maven-archiver/
+target/maven-status/
