@@ -31,8 +31,8 @@ type Client struct {
 	HTTPClient *http.Client
 }
 
-// DocGenRequest 文档生成请求参数
-type DocGenRequest struct {
+// WordGenRequest Word 文档生成请求参数
+type WordGenRequest struct {
 	// TemplateName 模板文件名（需包含扩展名，如 template.docx）
 	TemplateName string `json:"templateName"`
 	// Data 模板渲染数据
@@ -49,6 +49,28 @@ type ExcelGenRequest struct {
 	Headers []string `json:"headers"`
 	// Data 数据行（二维数组）
 	Data [][]any `json:"data"`
+	// FileName 自定义输出文件名（不含扩展名，可选）
+	FileName string `json:"fileName,omitempty"`
+}
+
+// ExcelFillRequest Excel 模板填充请求参数
+type ExcelFillRequest struct {
+	// TemplateName 模板文件名（需包含扩展名，如 template.xlsx）
+	TemplateName string `json:"templateName"`
+	// Data 单值变量数据（对应模板中的 {variable} 语法）
+	Data map[string]any `json:"data,omitempty"`
+	// ListData 列表数据（对应模板中的 {.field} 语法，用于行循环）
+	ListData map[string][]map[string]any `json:"listData,omitempty"`
+	// FileName 自定义输出文件名（不含扩展名，可选）
+	FileName string `json:"fileName,omitempty"`
+}
+
+// WordBatchRequest 批量 Word 生成请求参数
+type WordBatchRequest struct {
+	// TemplateName 模板文件名（需包含扩展名，如 template.docx）
+	TemplateName string `json:"templateName"`
+	// DataList 数据列表，每条数据生成一页
+	DataList []map[string]any `json:"dataList"`
 	// FileName 自定义输出文件名（不含扩展名，可选）
 	FileName string `json:"fileName,omitempty"`
 }
@@ -215,6 +237,84 @@ func (c *Client) SaveWord(templateName string, data map[string]any, outputPath s
 	return writeFile(outputPath, doc)
 }
 
+// BatchGenerateWord 批量生成 Word 文档
+//
+// templateName: 模板文件名（需包含扩展名）
+// dataList: 数据列表，每条数据生成一页
+// fileName: 输出文件名（不含扩展名，可选）
+//
+// 返回包含多页的单个 Word 文档字节数组
+func (c *Client) BatchGenerateWord(templateName string, dataList []map[string]any, fileName string) ([]byte, error) {
+	req := WordBatchRequest{
+		TemplateName: templateName,
+		DataList:     dataList,
+		FileName:     fileName,
+	}
+	return c.doBatchRequest(req)
+}
+
+// BatchGenerateWordWithRequest 使用完整请求结构批量生成 Word 文档
+func (c *Client) BatchGenerateWordWithRequest(req WordBatchRequest) ([]byte, error) {
+	return c.doBatchRequest(req)
+}
+
+// doBatchRequest 执行批量 Word 生成 HTTP 请求
+func (c *Client) doBatchRequest(req WordBatchRequest) ([]byte, error) {
+	// 序列化请求体
+	body, err := json.Marshal(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal request: %w", err)
+	}
+
+	// 构建 HTTP 请求
+	url := fmt.Sprintf("%s/api/v1/doc/word/batch", c.BaseURL)
+	httpReq, err := http.NewRequest(http.MethodPost, url, bytes.NewReader(body))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("Accept", "application/octet-stream")
+
+	// 发送请求
+	resp, err := c.HTTPClient.Do(httpReq)
+	if err != nil {
+		return nil, fmt.Errorf("failed to send request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	// 读取响应体
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response: %w", err)
+	}
+
+	// 处理错误响应
+	if resp.StatusCode != http.StatusOK {
+		var errResp ErrorResponse
+		if err := json.Unmarshal(respBody, &errResp); err != nil {
+			return nil, fmt.Errorf("request failed with status %d: %s", resp.StatusCode, string(respBody))
+		}
+		return nil, &errResp
+	}
+
+	return respBody, nil
+}
+
+// SaveBatchWord 批量生成 Word 文档并保存到文件
+//
+// templateName: 模板文件名
+// dataList: 数据列表
+// outputPath: 输出文件路径（需包含 .docx 扩展名）
+func (c *Client) SaveBatchWord(templateName string, dataList []map[string]any, outputPath string) error {
+	doc, err := c.BatchGenerateWord(templateName, dataList, "")
+	if err != nil {
+		return err
+	}
+
+	return writeFile(outputPath, doc)
+}
+
 // GenerateExcel 生成 Excel 文档
 //
 // sheetName: 工作表名称（可选，传空字符串使用默认值 "Sheet1"）
@@ -289,6 +389,87 @@ func (c *Client) doExcelRequest(req ExcelGenRequest) ([]byte, error) {
 // outputPath: 输出文件路径（需包含 .xlsx 扩展名）
 func (c *Client) SaveExcel(sheetName string, headers []string, data [][]any, outputPath string) error {
 	doc, err := c.GenerateExcel(sheetName, headers, data, "")
+	if err != nil {
+		return err
+	}
+
+	return writeFile(outputPath, doc)
+}
+
+// FillExcelTemplate 基于模板填充 Excel 文档
+//
+// templateName: 模板文件名（需包含扩展名）
+// data: 单值变量数据（对应模板中的 {variable} 语法）
+// listData: 列表数据（对应模板中的 {.field} 语法）
+// fileName: 输出文件名（不含扩展名，可选）
+//
+// 返回填充后的 Excel 文档字节数组
+func (c *Client) FillExcelTemplate(templateName string, data map[string]any, listData map[string][]map[string]any, fileName string) ([]byte, error) {
+	req := ExcelFillRequest{
+		TemplateName: templateName,
+		Data:         data,
+		ListData:     listData,
+		FileName:     fileName,
+	}
+	return c.doFillRequest(req)
+}
+
+// FillExcelTemplateWithRequest 使用完整请求结构填充 Excel 模板
+func (c *Client) FillExcelTemplateWithRequest(req ExcelFillRequest) ([]byte, error) {
+	return c.doFillRequest(req)
+}
+
+// doFillRequest 执行 Excel 模板填充 HTTP 请求
+func (c *Client) doFillRequest(req ExcelFillRequest) ([]byte, error) {
+	// 序列化请求体
+	body, err := json.Marshal(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal request: %w", err)
+	}
+
+	// 构建 HTTP 请求
+	url := fmt.Sprintf("%s/api/v1/doc/excel/fill", c.BaseURL)
+	httpReq, err := http.NewRequest(http.MethodPost, url, bytes.NewReader(body))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("Accept", "application/octet-stream")
+
+	// 发送请求
+	resp, err := c.HTTPClient.Do(httpReq)
+	if err != nil {
+		return nil, fmt.Errorf("failed to send request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	// 读取响应体
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response: %w", err)
+	}
+
+	// 处理错误响应
+	if resp.StatusCode != http.StatusOK {
+		var errResp ErrorResponse
+		if err := json.Unmarshal(respBody, &errResp); err != nil {
+			return nil, fmt.Errorf("request failed with status %d: %s", resp.StatusCode, string(respBody))
+		}
+		return nil, &errResp
+	}
+
+	return respBody, nil
+}
+
+// SaveFilledExcel 填充 Excel 模板并保存到文件
+//
+// templateName: 模板文件名
+// data: 单值变量数据
+// listData: 列表数据
+// outputPath: 输出文件路径（需包含 .xlsx 扩展名）
+func (c *Client) SaveFilledExcel(templateName string, data map[string]any, listData map[string][]map[string]any, outputPath string) error {
+	doc, err := c.FillExcelTemplate(templateName, data, listData, "")
 	if err != nil {
 		return err
 	}

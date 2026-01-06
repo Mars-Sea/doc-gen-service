@@ -3,6 +3,7 @@ package io.github.marssea.docgen.config;
 import io.github.marssea.docgen.exception.TemplateNotFoundException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -28,15 +29,16 @@ public class GlobalExceptionHandler {
     /**
      * 处理模板未找到异常
      * <p>
-     * 当用户请求的模板文件不存在时返回 404 Not Found
+     * 当用户请求的模板文件不存在时返回 422 Unprocessable Entity
+     * 使用 422 而非 404，因为 API 路径存在，只是引用的模板资源不存在
      *
      * @param e 模板未找到异常
-     * @return HTTP 404 响应
+     * @return HTTP 422 响应
      */
     @ExceptionHandler(TemplateNotFoundException.class)
     public ResponseEntity<Map<String, Object>> handleTemplateNotFound(TemplateNotFoundException e) {
         log.warn("Template not found: {}", e.getTemplateName());
-        return buildErrorResponse(HttpStatus.NOT_FOUND, "TEMPLATE_NOT_FOUND", e.getMessage());
+        return buildErrorResponse(HttpStatus.UNPROCESSABLE_ENTITY, "TEMPLATE_NOT_FOUND", e.getMessage());
     }
 
     /**
@@ -102,6 +104,8 @@ public class GlobalExceptionHandler {
         body.put("status", status.value());
         body.put("code", code);
         body.put("message", message);
-        return ResponseEntity.status(status).body(body);
+        return ResponseEntity.status(status)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(body);
     }
 }

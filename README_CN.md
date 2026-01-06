@@ -6,12 +6,14 @@
 [![Java](https://img.shields.io/badge/Java-17-blue.svg)](https://openjdk.org/projects/jdk/17/)
 [![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.2.1-green.svg)](https://spring.io/projects/spring-boot)
 
-基于 **Spring Boot** 的文档生成微服务，使用 **poi-tl** 渲染 Word 模板。提供 RESTful API 供外部系统（如 Go 服务）调用，支持 Docker 容器化部署。
+基于 **Spring Boot** 的文档生成微服务，使用 **poi-tl** 渲染 Word 模板，**EasyExcel** 处理 Excel 文档。提供 RESTful API 供外部系统（如 Go 服务）调用，支持 Docker 容器化部署。
 
 ## ✨ 功能特性
 
 - 📄 **Word 文档生成** - 基于模板的动态文档生成
-- 📊 **Excel 支持** - 集成 EasyExcel 处理电子表格
+- 📑 **批量 Word 生成** - 多条数据生成单个多页文档
+- 📊 **Excel 动态生成** - 根据表头和数据动态创建 Excel
+- 📋 **Excel 模板填充** - 支持变量替换和列表循环填充
 - 🔄 **表格循环渲染** - 自动检测并渲染集合数据
 - 📤 **模板管理** - 通过 API 上传和查询模板文件
 - 🐳 **Docker 支持** - 多架构镜像 (amd64/arm64)
@@ -52,19 +54,30 @@ Content-Type: application/json
 ```json
 {
   "templateName": "template.docx",
-  "data": {
-    "title": "我的报告",
-    "date": "2025-01-01"
-  },
+  "data": {"title": "我的报告", "date": "2025-01-01"},
   "fileName": "输出报告"
 }
 ```
 
-| 字段 | 类型 | 必填 | 说明 |
-|------|------|------|------|
-| `templateName` | string | ✅ | 模板文件名 |
-| `data` | object | ✅ | 渲染数据 |
-| `fileName` | string | ❌ | 输出文件名（支持中文） |
+### 批量生成 Word 文档
+
+使用同一模板渲染多条数据，每条数据生成一页，合并为单个文档。
+
+```http
+POST /api/v1/doc/word/batch
+Content-Type: application/json
+```
+
+```json
+{
+  "templateName": "certificate.docx",
+  "dataList": [
+    {"name": "张三", "award": "一等奖"},
+    {"name": "李四", "award": "二等奖"}
+  ],
+  "fileName": "批量证书"
+}
+```
 
 ### 生成 Excel 文档
 
@@ -85,12 +98,28 @@ Content-Type: application/json
 }
 ```
 
-| 字段 | 类型 | 必填 | 说明 |
-|------|------|------|------|
-| `sheetName` | string | ❌ | 工作表名称，默认 "Sheet1" |
-| `headers` | string[] | ✅ | 表头列名 |
-| `data` | any[][] | ✅ | 二维数据数组 |
-| `fileName` | string | ❌ | 输出文件名（支持中文） |
+### 填充 Excel 模板
+
+支持单值变量 `{variable}` 和列表循环 `{.field}` 语法。
+
+```http
+POST /api/v1/doc/excel/fill
+Content-Type: application/json
+```
+
+```json
+{
+  "templateName": "report-template.xlsx",
+  "data": {"title": "销售报告", "date": "2025-01-01"},
+  "listData": {
+    "items": [
+      {"no": 1, "name": "商品A", "price": 100},
+      {"no": 2, "name": "商品B", "price": 200}
+    ]
+  },
+  "fileName": "销售报告"
+}
+```
 
 ### 模板管理
 
@@ -119,21 +148,25 @@ DELETE /api/v1/template/{templateName}
 ## 📦 Go SDK
 
 ```bash
-go get github.com/Mars-Sea/doc-gen-service/sdk/go@v0.0.2
+go get github.com/Mars-Sea/doc-gen-service/sdk/go@v0.0.3
 ```
 
 ```go
 client := docgen.NewClient("http://localhost:8081")
 
-// 生成文档
+// 生成 Word 文档
 doc, _ := client.GenerateWord("template.docx", data, "报告")
 os.WriteFile("报告.docx", doc, 0644)
 
-// 获取模板列表
-templates, _ := client.ListTemplates()
+// 批量生成 Word 文档
+dataList := []map[string]any{
+    {"name": "张三", "award": "一等奖"},
+    {"name": "李四", "award": "二等奖"},
+}
+batchDoc, _ := client.BatchGenerateWord("certificate.docx", dataList, "证书")
 
-// 上传模板
-result, _ := client.UploadTemplate("/path/to/template.docx")
+// 填充 Excel 模板
+filledExcel, _ := client.FillExcelTemplate("template.xlsx", data, listData, "output")
 ```
 
 ## 🐳 多架构 Docker 构建
@@ -146,7 +179,9 @@ docker buildx build --platform linux/arm64 -t doc-gen-service:arm64 --load .
 docker buildx build --platform linux/amd64 -t doc-gen-service:amd64 --load .
 ```
 
-## 📋 模板语法 (poi-tl)
+## 📋 模板语法
+
+### Word (poi-tl)
 
 | 语法 | 说明 | 示例 |
 |------|------|------|
@@ -155,23 +190,12 @@ docker buildx build --platform linux/amd64 -t doc-gen-service:amd64 --load .
 | `{{#table}}` | 表格循环 | `{{#items}}` |
 | `{{?condition}}` | 条件判断 | `{{?showHeader}}` |
 
-### 表格循环示例
+### Excel (EasyExcel)
 
-**模板文件:**
-| 名称 | 价格 |
-|------|------|
-| {{goods}} | |
-| [name] | [price] |
-
-**请求数据:**
-```json
-{
-  "goods": [
-    {"name": "商品A", "price": 100},
-    {"name": "商品B", "price": 200}
-  ]
-}
-```
+| 语法 | 说明 | 示例 |
+|------|------|------|
+| `{variable}` | 单值替换 | `{title}` |
+| `{.field}` | 列表行循环 | `{.name}`, `{.price}` |
 
 ## 🛠️ 技术栈
 
@@ -183,26 +207,6 @@ docker buildx build --platform linux/amd64 -t doc-gen-service:amd64 --load .
 | EasyExcel | 4.0.1 | Excel 处理 |
 | SpringDoc | 2.3.0 | API 文档 |
 
-## ❓ 常见问题
-
-### 多架构构建失败
-
-```bash
-# 安装 QEMU 模拟器
-docker run --privileged --rm tonistiigi/binfmt --install all
-```
-
-### 模板文件找不到
-
-确保模板文件放置在 `TEMPLATE_PATH` 配置的目录下。
-
-### Docker 无法访问模板
-
-检查 volume 挂载路径是否正确：
-```bash
-docker run -v /绝对路径/templates:/app/templates ...
-```
-
 ## 📄 开源协议
 
 [MIT License](./LICENSE)
@@ -210,5 +214,6 @@ docker run -v /绝对路径/templates:/app/templates ...
 ## 🔗 相关链接
 
 - [poi-tl 官方文档](http://deepoove.com/poi-tl/)
+- [EasyExcel 官方文档](https://easyexcel.opensource.alibaba.com/)
 - [Spring Boot 官网](https://spring.io/projects/spring-boot)
 - [Go SDK 文档](./sdk/go/README.md)

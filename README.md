@@ -6,12 +6,14 @@
 [![Java](https://img.shields.io/badge/Java-17-blue.svg)](https://openjdk.org/projects/jdk/17/)
 [![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.2.1-green.svg)](https://spring.io/projects/spring-boot)
 
-A document generation microservice based on **Spring Boot**, using **poi-tl** for Word template rendering. Provides RESTful APIs for external systems (e.g., Go services) to call, with Docker containerization support.
+A document generation microservice based on **Spring Boot**, using **poi-tl** for Word template rendering and **EasyExcel** for Excel operations. Provides RESTful APIs for external systems (e.g., Go services) to call, with Docker containerization support.
 
 ## ✨ Features
 
 - 📄 **Word Document Generation** - Template-based dynamic document generation using poi-tl
-- 📊 **Excel Support** - EasyExcel integration for spreadsheet operations
+- 📑 **Batch Word Generation** - Generate multi-page documents from multiple data records
+- 📊 **Excel Generation** - Dynamic Excel creation with EasyExcel
+- 📋 **Excel Template Fill** - Fill Excel templates with variables and list data
 - 🔄 **Table Loop Rendering** - Automatic detection and rendering of collection data
 - 📤 **Template Management** - Upload and list template files via API
 - 🐳 **Docker Ready** - Multi-architecture support (amd64/arm64)
@@ -60,6 +62,26 @@ Content-Type: application/json
 }
 ```
 
+### Batch Generate Word Document
+
+Generate a single document with multiple pages from multiple data records.
+
+```http
+POST /api/v1/doc/word/batch
+Content-Type: application/json
+```
+
+```json
+{
+  "templateName": "certificate.docx",
+  "dataList": [
+    {"name": "Alice", "award": "Gold"},
+    {"name": "Bob", "award": "Silver"}
+  ],
+  "fileName": "certificates"
+}
+```
+
 ### Generate Excel Document
 
 ```http
@@ -76,6 +98,29 @@ Content-Type: application/json
     ["Bob", 30, "Shanghai"]
   ],
   "fileName": "employees"
+}
+```
+
+### Fill Excel Template
+
+Fill Excel templates with variables `{variable}` and list data `{.field}`.
+
+```http
+POST /api/v1/doc/excel/fill
+Content-Type: application/json
+```
+
+```json
+{
+  "templateName": "report-template.xlsx",
+  "data": {"title": "Sales Report", "date": "2025-01-01"},
+  "listData": {
+    "items": [
+      {"no": 1, "name": "Product A", "price": 100},
+      {"no": 2, "name": "Product B", "price": 200}
+    ]
+  },
+  "fileName": "sales_report"
 }
 ```
 
@@ -106,18 +151,25 @@ DELETE /api/v1/template/{templateName}
 ## 📦 Go SDK
 
 ```bash
-go get github.com/Mars-Sea/doc-gen-service/sdk/go@v0.0.2
+go get github.com/Mars-Sea/doc-gen-service/sdk/go@v0.0.3
 ```
 
 ```go
 client := docgen.NewClient("http://localhost:8081")
 
-// Generate document
+// Generate Word document
 doc, _ := client.GenerateWord("template.docx", data, "report")
 os.WriteFile("report.docx", doc, 0644)
 
-// List templates
-templates, _ := client.ListTemplates()
+// Batch generate Word document
+dataList := []map[string]any{
+    {"name": "Alice", "award": "Gold"},
+    {"name": "Bob", "award": "Silver"},
+}
+batchDoc, _ := client.BatchGenerateWord("certificate.docx", dataList, "certificates")
+
+// Fill Excel template
+filledExcel, _ := client.FillExcelTemplate("template.xlsx", data, listData, "output")
 ```
 
 ## 🐳 Multi-Architecture Docker Build
@@ -130,7 +182,9 @@ docker buildx build --platform linux/arm64 -t doc-gen-service:arm64 --load .
 docker buildx build --platform linux/amd64 -t doc-gen-service:amd64 --load .
 ```
 
-## 📋 Template Syntax (poi-tl)
+## 📋 Template Syntax
+
+### Word (poi-tl)
 
 | Syntax | Description | Example |
 |--------|-------------|---------|
@@ -138,6 +192,13 @@ docker buildx build --platform linux/amd64 -t doc-gen-service:amd64 --load .
 | `{{@image}}` | Image insertion | `{{@logo}}` |
 | `{{#table}}` | Table loop | `{{#items}}` |
 | `{{?condition}}` | Conditional | `{{?showHeader}}` |
+
+### Excel (EasyExcel)
+
+| Syntax | Description | Example |
+|--------|-------------|---------|
+| `{variable}` | Single value | `{title}` |
+| `{.field}` | List row loop | `{.name}`, `{.price}` |
 
 ## 🛠️ Tech Stack
 
@@ -156,5 +217,6 @@ docker buildx build --platform linux/amd64 -t doc-gen-service:amd64 --load .
 ## 🔗 Links
 
 - [poi-tl Documentation](http://deepoove.com/poi-tl/)
+- [EasyExcel Documentation](https://easyexcel.opensource.alibaba.com/)
 - [Spring Boot](https://spring.io/projects/spring-boot)
 - [Go SDK Documentation](./sdk/go/README.md)

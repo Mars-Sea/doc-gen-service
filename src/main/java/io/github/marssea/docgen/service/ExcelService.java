@@ -1,14 +1,24 @@
 package io.github.marssea.docgen.service;
 
 import com.alibaba.excel.EasyExcel;
+import com.alibaba.excel.ExcelWriter;
+import com.alibaba.excel.write.metadata.WriteSheet;
+import com.alibaba.excel.write.metadata.fill.FillConfig;
 import com.alibaba.excel.write.style.column.LongestMatchColumnWidthStyleStrategy;
+import io.github.marssea.docgen.config.DocGenProperties;
+import io.github.marssea.docgen.exception.TemplateNotFoundException;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Excel 文档生成服务
@@ -22,6 +32,7 @@ import java.util.List;
  * <li>动态配置表头列名</li>
  * <li>填充二维数据到工作表</li>
  * <li>自动调整列宽</li>
+ * <li>基于模板的数据填充</li>
  * </ul>
  *
  * @author Mars-Sea
@@ -29,7 +40,10 @@ import java.util.List;
  */
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class ExcelService {
+
+    private final DocGenProperties properties;
 
     /**
      * 根据表头和数据生成 Excel 文档
@@ -66,6 +80,76 @@ public class ExcelService {
         } catch (Exception e) {
             log.error("Failed to generate Excel document", e);
             throw new RuntimeException("Failed to generate Excel document: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * 基于模板填充 Excel 文档
+     * <p>
+     * 使用 EasyExcel 模板填充功能，支持：
+     * <ul>
+     * <li>单值变量替换: {variable}</li>
+     * <li>列表数据循环: {.field}</li>
+     * </ul>
+     *
+     * @param templateName 模板文件名（需包含扩展名，如 template.xlsx）
+     * @param data         单值变量数据
+     * @param listData     列表数据（用于循环填充）
+     * @return 生成的 Excel 文档二进制流
+     */
+    public byte[] fillTemplate(String templateName,
+            Map<String, Object> data,
+            Map<String, List<Map<String, Object>>> listData) {
+        // 构建模板文件的完整路径
+        Path templatePath = Paths.get(properties.getTemplatePath(), templateName);
+        File templateFile = templatePath.toFile();
+
+        // 校验模板文件是否存在
+        if (!templateFile.exists()) {
+            log.error("Template file not found at: {}", templatePath);
+            throw new TemplateNotFoundException(templateName, "Template not found at: " + templatePath);
+        }
+
+        log.info("Filling Excel template: {}, data keys: {}, list keys: {}",
+                templatePath,
+                data != null ? data.keySet() : "null",
+                listData != null ? listData.keySet() : "null");
+
+        try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+            // 使用模板创建 ExcelWriter
+            try (ExcelWriter excelWriter = EasyExcel.write(out)
+                    .withTemplate(templateFile)
+                    .build()) {
+
+                WriteSheet writeSheet = EasyExcel.writerSheet().build();
+
+                // 配置列表填充：自动换行
+                FillConfig fillConfig = FillConfig.builder()
+                        .forceNewRow(Boolean.TRUE)
+                        .build();
+
+                // 先填充列表数据（因为列表会改变行数）
+                if (listData != null && !listData.isEmpty()) {
+                    for (Map.Entry<String, List<Map<String, Object>>> entry : listData.entrySet()) {
+                        log.debug("Filling list data for key: {}, rows: {}",
+                                entry.getKey(), entry.getValue().size());
+                        excelWriter.fill(entry.getValue(), fillConfig, writeSheet);
+                    }
+                }
+
+                // 再填充单值数据
+                if (data != null && !data.isEmpty()) {
+                    excelWriter.fill(data, writeSheet);
+                }
+            }
+
+            log.info("Excel template filled successfully, size: {} bytes", out.size());
+            return out.toByteArray();
+        } catch (TemplateNotFoundException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("Failed to fill Excel template", e);
+            throw new RuntimeException("Failed to fill Excel template: " + e.getMessage(), e);
         }
     }
 

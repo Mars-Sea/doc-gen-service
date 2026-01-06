@@ -7,9 +7,9 @@ import lombok.Data;
 import java.util.Map;
 
 /**
- * 文档生成请求体 DTO
+ * Word 文档生成请求体 DTO
  * <p>
- * 定义客户端请求生成文档时需要传递的参数结构。
+ * 定义客户端请求生成 Word 文档时需要传递的参数结构。
  * 该类用于接收来自调用方（如 Go 服务）的 JSON 数据。
  *
  * <h3>请求示例:</h3>
@@ -33,8 +33,8 @@ import java.util.Map;
  * @since 1.0.0
  */
 @Data
-@Schema(description = "文档生成请求参数")
-public class DocGenRequest {
+@Schema(description = "Word 文档生成请求参数")
+public class WordGenRequest {
 
     /**
      * 模板文件名称

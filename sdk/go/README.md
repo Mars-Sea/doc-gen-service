@@ -10,7 +10,7 @@ Go client library for Doc-Gen-Service API.
 ## Installation
 
 ```bash
-go get github.com/Mars-Sea/doc-gen-service/sdk/go@v0.0.2
+go get github.com/Mars-Sea/doc-gen-service/sdk/go@v0.0.3
 ```
 
 ## Quick Start
@@ -59,14 +59,23 @@ func main() {
 | `Health()` | `*HealthResponse, error` | Get health status details |
 | `IsHealthy()` | `bool` | Quick health check |
 
-### Document Generation
+### Word Document Generation
 
 | Method | Returns | Description |
 |--------|---------|-------------|
 | `GenerateWord(template, data, fileName)` | `[]byte, error` | Generate Word document |
 | `SaveWord(template, data, outputPath)` | `error` | Generate and save to file |
-| `GenerateExcel(sheetName, headers, data, fileName)` | `[]byte, error` | Generate Excel document |
-| `SaveExcel(sheetName, headers, data, outputPath)` | `error` | Generate Excel and save to file |
+| `BatchGenerateWord(template, dataList, fileName)` | `[]byte, error` | Generate multi-page Word from list |
+| `SaveBatchWord(template, dataList, outputPath)` | `error` | Batch generate and save |
+
+### Excel Document Generation
+
+| Method | Returns | Description |
+|--------|---------|-------------|
+| `GenerateExcel(sheetName, headers, data, fileName)` | `[]byte, error` | Generate Excel dynamically |
+| `SaveExcel(sheetName, headers, data, outputPath)` | `error` | Generate Excel and save |
+| `FillExcelTemplate(template, data, listData, fileName)` | `[]byte, error` | Fill Excel template |
+| `SaveFilledExcel(template, data, listData, outputPath)` | `error` | Fill template and save |
 
 ### Template Management
 
@@ -75,71 +84,34 @@ func main() {
 | `UploadTemplate(filePath)` | `*UploadResponse, error` | Upload from file path |
 | `UploadTemplateFromBytes(data, filename)` | `*UploadResponse, error` | Upload from bytes |
 | `ListTemplates()` | `[]string, error` | Get template names |
-| `ListTemplatesWithDetails()` | `*ListTemplatesResponse, error` | Get templates with count |
 | `DownloadTemplate(templateName)` | `[]byte, error` | Download template content |
-| `SaveTemplate(templateName, outputPath)` | `error` | Download and save to file |
 | `DeleteTemplate(templateName)` | `*DeleteResponse, error` | Delete template |
 
 ## Examples
 
-### Health Check
+### Batch Generate Word
 
 ```go
-if client.IsHealthy() {
-    fmt.Println("Service is UP")
+dataList := []map[string]any{
+    {"name": "Alice", "award": "Gold"},
+    {"name": "Bob", "award": "Silver"},
 }
+doc, _ := client.BatchGenerateWord("certificate.docx", dataList, "certificates")
+os.WriteFile("certificates.docx", doc, 0644)
 ```
 
-### Generate Document
+### Fill Excel Template
 
 ```go
-data := map[string]any{
-    "title": "Report",
-    "items": []map[string]any{
-        {"name": "Item A", "price": 100},
-        {"name": "Item B", "price": 200},
+data := map[string]any{"title": "Report", "date": "2025-01-01"}
+listData := map[string][]map[string]any{
+    "items": {
+        {"no": 1, "name": "Product A", "price": 100},
+        {"no": 2, "name": "Product B", "price": 200},
     },
 }
-doc, _ := client.GenerateWord("template.docx", data, "output")
-os.WriteFile("output.docx", doc, 0644)
-```
-
-### Generate Excel
-
-```go
-headers := []string{"Name", "Age", "City"}
-data := [][]any{
-    {"Alice", 25, "Beijing"},
-    {"Bob", 30, "Shanghai"},
-}
-doc, _ := client.GenerateExcel("Sheet1", headers, data, "employees")
-os.WriteFile("employees.xlsx", doc, 0644)
-
-// Or save directly
-client.SaveExcel("Sheet1", headers, data, "employees.xlsx")
-```
-
-### Template Management
-
-```go
-// Upload
-result, _ := client.UploadTemplate("./template.docx")
-fmt.Println(result.FileName)
-
-// List
-templates, _ := client.ListTemplates()
-for _, t := range templates {
-    fmt.Println(t)
-}
-
-// Download
-content, _ := client.DownloadTemplate("template.docx")
-os.WriteFile("local.docx", content, 0644)
-// Or use SaveTemplate
-client.SaveTemplate("template.docx", "./local.docx")
-
-// Delete
-client.DeleteTemplate("old-template.docx")
+doc, _ := client.FillExcelTemplate("template.xlsx", data, listData, "output")
+os.WriteFile("output.xlsx", doc, 0644)
 ```
 
 ### Error Handling
@@ -148,7 +120,7 @@ client.DeleteTemplate("old-template.docx")
 doc, err := client.GenerateWord("template.docx", data, "")
 if err != nil {
     if apiErr, ok := err.(*docgen.ErrorResponse); ok {
-        fmt.Printf("API Error: %s\n", apiErr.Message)
+        fmt.Printf("API Error [%s]: %s\n", apiErr.Code, apiErr.Message)
     } else {
         log.Fatal(err)
     }
@@ -164,7 +136,7 @@ if err != nil {
 ## 安装
 
 ```bash
-go get github.com/Mars-Sea/doc-gen-service/sdk/go@v0.0.2
+go get github.com/Mars-Sea/doc-gen-service/sdk/go@v0.0.3
 ```
 
 ## 快速开始
@@ -172,15 +144,22 @@ go get github.com/Mars-Sea/doc-gen-service/sdk/go@v0.0.2
 ```go
 client := docgen.NewClient("http://localhost:8081")
 
-// 检查服务健康
-if !client.IsHealthy() {
-    log.Fatal("服务不可用")
-}
-
-// 生成文档
+// 生成单个 Word 文档
 data := map[string]any{"title": "报告", "date": "2025-01-01"}
 doc, _ := client.GenerateWord("template.docx", data, "报告")
-os.WriteFile("报告.docx", doc, 0644)
+
+// 批量生成 Word 文档
+dataList := []map[string]any{
+    {"name": "张三", "award": "一等奖"},
+    {"name": "李四", "award": "二等奖"},
+}
+batchDoc, _ := client.BatchGenerateWord("certificate.docx", dataList, "证书")
+
+// 填充 Excel 模板
+listData := map[string][]map[string]any{
+    "items": {{"name": "商品A", "price": 100}},
+}
+excelDoc, _ := client.FillExcelTemplate("template.xlsx", data, listData, "output")
 ```
 
 ## 主要方法
@@ -189,10 +168,10 @@ os.WriteFile("报告.docx", doc, 0644)
 |------|------|
 | `Health()` / `IsHealthy()` | 健康检查 |
 | `GenerateWord()` / `SaveWord()` | 生成 Word 文档 |
-| `GenerateExcel()` / `SaveExcel()` | 生成 Excel 文档 |
-| `UploadTemplate()` | 上传模板 |
-| `ListTemplates()` | 获取模板列表 |
-| `DeleteTemplate()` | 删除模板 |
+| `BatchGenerateWord()` / `SaveBatchWord()` | 批量生成 Word 文档 |
+| `GenerateExcel()` / `SaveExcel()` | 动态生成 Excel |
+| `FillExcelTemplate()` / `SaveFilledExcel()` | 填充 Excel 模板 |
+| `UploadTemplate()` / `ListTemplates()` / `DeleteTemplate()` | 模板管理 |
 
 ## License
 
