@@ -41,6 +41,18 @@ type DocGenRequest struct {
 	FileName string `json:"fileName,omitempty"`
 }
 
+// ExcelGenRequest Excel 生成请求参数
+type ExcelGenRequest struct {
+	// SheetName 工作表名称（可选，默认 "Sheet1"）
+	SheetName string `json:"sheetName,omitempty"`
+	// Headers 表头列名列表
+	Headers []string `json:"headers"`
+	// Data 数据行（二维数组）
+	Data [][]any `json:"data"`
+	// FileName 自定义输出文件名（不含扩展名，可选）
+	FileName string `json:"fileName,omitempty"`
+}
+
 // ErrorResponse 错误响应结构
 type ErrorResponse struct {
 	Status  int    `json:"status"`
@@ -196,6 +208,87 @@ func (c *Client) doRequest(req DocGenRequest) ([]byte, error) {
 // outputPath: 输出文件路径（需包含 .docx 扩展名）
 func (c *Client) SaveWord(templateName string, data map[string]any, outputPath string) error {
 	doc, err := c.GenerateWord(templateName, data, "")
+	if err != nil {
+		return err
+	}
+
+	return writeFile(outputPath, doc)
+}
+
+// GenerateExcel 生成 Excel 文档
+//
+// sheetName: 工作表名称（可选，传空字符串使用默认值 "Sheet1"）
+// headers: 表头列名列表
+// data: 二维数据数组
+// fileName: 输出文件名（不含扩展名，可选，传空字符串使用默认值）
+//
+// 返回生成的 Excel 文档字节数组
+func (c *Client) GenerateExcel(sheetName string, headers []string, data [][]any, fileName string) ([]byte, error) {
+	req := ExcelGenRequest{
+		SheetName: sheetName,
+		Headers:   headers,
+		Data:      data,
+		FileName:  fileName,
+	}
+	return c.doExcelRequest(req)
+}
+
+// GenerateExcelWithRequest 使用完整请求结构生成 Excel 文档
+func (c *Client) GenerateExcelWithRequest(req ExcelGenRequest) ([]byte, error) {
+	return c.doExcelRequest(req)
+}
+
+// doExcelRequest 执行 Excel 生成 HTTP 请求
+func (c *Client) doExcelRequest(req ExcelGenRequest) ([]byte, error) {
+	// 序列化请求体
+	body, err := json.Marshal(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal request: %w", err)
+	}
+
+	// 构建 HTTP 请求
+	url := fmt.Sprintf("%s/api/v1/doc/excel", c.BaseURL)
+	httpReq, err := http.NewRequest(http.MethodPost, url, bytes.NewReader(body))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("Accept", "application/octet-stream")
+
+	// 发送请求
+	resp, err := c.HTTPClient.Do(httpReq)
+	if err != nil {
+		return nil, fmt.Errorf("failed to send request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	// 读取响应体
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response: %w", err)
+	}
+
+	// 处理错误响应
+	if resp.StatusCode != http.StatusOK {
+		var errResp ErrorResponse
+		if err := json.Unmarshal(respBody, &errResp); err != nil {
+			return nil, fmt.Errorf("request failed with status %d: %s", resp.StatusCode, string(respBody))
+		}
+		return nil, &errResp
+	}
+
+	return respBody, nil
+}
+
+// SaveExcel 生成 Excel 文档并保存到文件
+//
+// sheetName: 工作表名称
+// headers: 表头列名列表
+// data: 二维数据数组
+// outputPath: 输出文件路径（需包含 .xlsx 扩展名）
+func (c *Client) SaveExcel(sheetName string, headers []string, data [][]any, outputPath string) error {
+	doc, err := c.GenerateExcel(sheetName, headers, data, "")
 	if err != nil {
 		return err
 	}

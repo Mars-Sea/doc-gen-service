@@ -65,6 +65,8 @@ func main() {
 |--------|---------|-------------|
 | `GenerateWord(template, data, fileName)` | `[]byte, error` | Generate Word document |
 | `SaveWord(template, data, outputPath)` | `error` | Generate and save to file |
+| `GenerateExcel(sheetName, headers, data, fileName)` | `[]byte, error` | Generate Excel document |
+| `SaveExcel(sheetName, headers, data, outputPath)` | `error` | Generate Excel and save to file |
 
 ### Template Management
 
@@ -100,6 +102,21 @@ data := map[string]any{
 }
 doc, _ := client.GenerateWord("template.docx", data, "output")
 os.WriteFile("output.docx", doc, 0644)
+```
+
+### Generate Excel
+
+```go
+headers := []string{"Name", "Age", "City"}
+data := [][]any{
+    {"Alice", 25, "Beijing"},
+    {"Bob", 30, "Shanghai"},
+}
+doc, _ := client.GenerateExcel("Sheet1", headers, data, "employees")
+os.WriteFile("employees.xlsx", doc, 0644)
+
+// Or save directly
+client.SaveExcel("Sheet1", headers, data, "employees.xlsx")
 ```
 
 ### Template Management
@@ -171,7 +188,8 @@ os.WriteFile("报告.docx", doc, 0644)
 | 方法 | 说明 |
 |------|------|
 | `Health()` / `IsHealthy()` | 健康检查 |
-| `GenerateWord()` / `SaveWord()` | 生成文档 |
+| `GenerateWord()` / `SaveWord()` | 生成 Word 文档 |
+| `GenerateExcel()` / `SaveExcel()` | 生成 Excel 文档 |
 | `UploadTemplate()` | 上传模板 |
 | `ListTemplates()` | 获取模板列表 |
 | `DeleteTemplate()` | 删除模板 |

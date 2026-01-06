@@ -66,6 +66,32 @@ Content-Type: application/json
 | `data` | object | ✅ | 渲染数据 |
 | `fileName` | string | ❌ | 输出文件名（支持中文） |
 
+### 生成 Excel 文档
+
+```http
+POST /api/v1/doc/excel
+Content-Type: application/json
+```
+
+```json
+{
+  "sheetName": "Sheet1",
+  "headers": ["姓名", "年龄", "城市"],
+  "data": [
+    ["张三", 25, "北京"],
+    ["李四", 30, "上海"]
+  ],
+  "fileName": "员工列表"
+}
+```
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `sheetName` | string | ❌ | 工作表名称，默认 "Sheet1" |
+| `headers` | string[] | ✅ | 表头列名 |
+| `data` | any[][] | ✅ | 二维数据数组 |
+| `fileName` | string | ❌ | 输出文件名（支持中文） |
+
 ### 模板管理
 
 ```http

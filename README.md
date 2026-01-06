@@ -60,6 +60,25 @@ Content-Type: application/json
 }
 ```
 
+### Generate Excel Document
+
+```http
+POST /api/v1/doc/excel
+Content-Type: application/json
+```
+
+```json
+{
+  "sheetName": "Sheet1",
+  "headers": ["Name", "Age", "City"],
+  "data": [
+    ["Alice", 25, "Beijing"],
+    ["Bob", 30, "Shanghai"]
+  ],
+  "fileName": "employees"
+}
+```
+
 ### Template Management
 
 ```http
