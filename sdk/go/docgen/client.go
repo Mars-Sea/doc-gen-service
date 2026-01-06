@@ -171,24 +171,29 @@ func (c *Client) GenerateWord(templateName string, data map[string]any, fileName
 		Data:         data,
 		FileName:     fileName,
 	}
-	return c.doRequest(req)
+	return c.doPostRequest("/api/v1/doc/word", req)
 }
 
 // GenerateWordWithRequest 使用完整请求结构生成 Word 文档
 func (c *Client) GenerateWordWithRequest(req WordGenRequest) ([]byte, error) {
-	return c.doRequest(req)
+	return c.doPostRequest("/api/v1/doc/word", req)
 }
 
-// doRequest 执行 HTTP 请求
-func (c *Client) doRequest(req WordGenRequest) ([]byte, error) {
+// doPostRequest 通用 POST 请求方法
+//
+// path: API 路径，如 "/api/v1/doc/word"
+// reqBody: 请求体，将被序列化为 JSON
+//
+// 返回响应体字节数组
+func (c *Client) doPostRequest(path string, reqBody any) ([]byte, error) {
 	// 序列化请求体
-	body, err := json.Marshal(req)
+	body, err := json.Marshal(reqBody)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal request: %w", err)
 	}
 
 	// 构建 HTTP 请求
-	url := fmt.Sprintf("%s/api/v1/doc/word", c.BaseURL)
+	url := fmt.Sprintf("%s%s", c.BaseURL, path)
 	httpReq, err := http.NewRequest(http.MethodPost, url, bytes.NewReader(body))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
@@ -249,55 +254,12 @@ func (c *Client) BatchGenerateWord(templateName string, dataList []map[string]an
 		DataList:     dataList,
 		FileName:     fileName,
 	}
-	return c.doBatchRequest(req)
+	return c.doPostRequest("/api/v1/doc/word/batch", req)
 }
 
 // BatchGenerateWordWithRequest 使用完整请求结构批量生成 Word 文档
 func (c *Client) BatchGenerateWordWithRequest(req WordBatchRequest) ([]byte, error) {
-	return c.doBatchRequest(req)
-}
-
-// doBatchRequest 执行批量 Word 生成 HTTP 请求
-func (c *Client) doBatchRequest(req WordBatchRequest) ([]byte, error) {
-	// 序列化请求体
-	body, err := json.Marshal(req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal request: %w", err)
-	}
-
-	// 构建 HTTP 请求
-	url := fmt.Sprintf("%s/api/v1/doc/word/batch", c.BaseURL)
-	httpReq, err := http.NewRequest(http.MethodPost, url, bytes.NewReader(body))
-	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %w", err)
-	}
-
-	httpReq.Header.Set("Content-Type", "application/json")
-	httpReq.Header.Set("Accept", "application/octet-stream")
-
-	// 发送请求
-	resp, err := c.HTTPClient.Do(httpReq)
-	if err != nil {
-		return nil, fmt.Errorf("failed to send request: %w", err)
-	}
-	defer resp.Body.Close()
-
-	// 读取响应体
-	respBody, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read response: %w", err)
-	}
-
-	// 处理错误响应
-	if resp.StatusCode != http.StatusOK {
-		var errResp ErrorResponse
-		if err := json.Unmarshal(respBody, &errResp); err != nil {
-			return nil, fmt.Errorf("request failed with status %d: %s", resp.StatusCode, string(respBody))
-		}
-		return nil, &errResp
-	}
-
-	return respBody, nil
+	return c.doPostRequest("/api/v1/doc/word/batch", req)
 }
 
 // SaveBatchWord 批量生成 Word 文档并保存到文件
@@ -329,55 +291,12 @@ func (c *Client) GenerateExcel(sheetName string, headers []string, data [][]any,
 		Data:      data,
 		FileName:  fileName,
 	}
-	return c.doExcelRequest(req)
+	return c.doPostRequest("/api/v1/doc/excel", req)
 }
 
 // GenerateExcelWithRequest 使用完整请求结构生成 Excel 文档
 func (c *Client) GenerateExcelWithRequest(req ExcelGenRequest) ([]byte, error) {
-	return c.doExcelRequest(req)
-}
-
-// doExcelRequest 执行 Excel 生成 HTTP 请求
-func (c *Client) doExcelRequest(req ExcelGenRequest) ([]byte, error) {
-	// 序列化请求体
-	body, err := json.Marshal(req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal request: %w", err)
-	}
-
-	// 构建 HTTP 请求
-	url := fmt.Sprintf("%s/api/v1/doc/excel", c.BaseURL)
-	httpReq, err := http.NewRequest(http.MethodPost, url, bytes.NewReader(body))
-	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %w", err)
-	}
-
-	httpReq.Header.Set("Content-Type", "application/json")
-	httpReq.Header.Set("Accept", "application/octet-stream")
-
-	// 发送请求
-	resp, err := c.HTTPClient.Do(httpReq)
-	if err != nil {
-		return nil, fmt.Errorf("failed to send request: %w", err)
-	}
-	defer resp.Body.Close()
-
-	// 读取响应体
-	respBody, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read response: %w", err)
-	}
-
-	// 处理错误响应
-	if resp.StatusCode != http.StatusOK {
-		var errResp ErrorResponse
-		if err := json.Unmarshal(respBody, &errResp); err != nil {
-			return nil, fmt.Errorf("request failed with status %d: %s", resp.StatusCode, string(respBody))
-		}
-		return nil, &errResp
-	}
-
-	return respBody, nil
+	return c.doPostRequest("/api/v1/doc/excel", req)
 }
 
 // SaveExcel 生成 Excel 文档并保存到文件
@@ -410,55 +329,12 @@ func (c *Client) FillExcelTemplate(templateName string, data map[string]any, lis
 		ListData:     listData,
 		FileName:     fileName,
 	}
-	return c.doFillRequest(req)
+	return c.doPostRequest("/api/v1/doc/excel/fill", req)
 }
 
 // FillExcelTemplateWithRequest 使用完整请求结构填充 Excel 模板
 func (c *Client) FillExcelTemplateWithRequest(req ExcelFillRequest) ([]byte, error) {
-	return c.doFillRequest(req)
-}
-
-// doFillRequest 执行 Excel 模板填充 HTTP 请求
-func (c *Client) doFillRequest(req ExcelFillRequest) ([]byte, error) {
-	// 序列化请求体
-	body, err := json.Marshal(req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal request: %w", err)
-	}
-
-	// 构建 HTTP 请求
-	url := fmt.Sprintf("%s/api/v1/doc/excel/fill", c.BaseURL)
-	httpReq, err := http.NewRequest(http.MethodPost, url, bytes.NewReader(body))
-	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %w", err)
-	}
-
-	httpReq.Header.Set("Content-Type", "application/json")
-	httpReq.Header.Set("Accept", "application/octet-stream")
-
-	// 发送请求
-	resp, err := c.HTTPClient.Do(httpReq)
-	if err != nil {
-		return nil, fmt.Errorf("failed to send request: %w", err)
-	}
-	defer resp.Body.Close()
-
-	// 读取响应体
-	respBody, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read response: %w", err)
-	}
-
-	// 处理错误响应
-	if resp.StatusCode != http.StatusOK {
-		var errResp ErrorResponse
-		if err := json.Unmarshal(respBody, &errResp); err != nil {
-			return nil, fmt.Errorf("request failed with status %d: %s", resp.StatusCode, string(respBody))
-		}
-		return nil, &errResp
-	}
-
-	return respBody, nil
+	return c.doPostRequest("/api/v1/doc/excel/fill", req)
 }
 
 // SaveFilledExcel 填充 Excel 模板并保存到文件
