@@ -158,7 +158,6 @@ func (c *Client) IsHealthy() bool {
 	return health.Status == "UP"
 }
 
-
 // GenerateWord 生成 Word 文档
 //
 // templateName: 模板文件名（需包含扩展名）
@@ -167,7 +166,7 @@ func (c *Client) IsHealthy() bool {
 //
 // 返回生成的文档字节数组
 func (c *Client) GenerateWord(templateName string, data map[string]any, fileName string) ([]byte, error) {
-	req := WordGenRequest
+	req := WordGenRequest{
 		TemplateName: templateName,
 		Data:         data,
 		FileName:     fileName,
@@ -176,12 +175,12 @@ func (c *Client) GenerateWord(templateName string, data map[string]any, fileName
 }
 
 // GenerateWordWithRequest 使用完整请求结构生成 Word 文档
-func (c *Client) GenerateWordWithRequest(req WordGenRequest
+func (c *Client) GenerateWordWithRequest(req WordGenRequest) ([]byte, error) {
 	return c.doRequest(req)
 }
 
 // doRequest 执行 HTTP 请求
-func (c *Client) doRequest(req WordGenRequest
+func (c *Client) doRequest(req WordGenRequest) ([]byte, error) {
 	// 序列化请求体
 	body, err := json.Marshal(req)
 	if err != nil {
