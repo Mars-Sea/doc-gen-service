@@ -11,6 +11,9 @@ services:
     environment:
       - TEMPLATE_PATH=/app/templates
       - SERVER_PORT=8081
+      # 文件大小限制（可根据需要调整）
+      - MAX_FILE_SIZE=50MB
+      - MAX_REQUEST_SIZE=50MB
     restart: unless-stopped
     healthcheck:
       test: [ "CMD", "curl", "-f", "http://localhost:8081/actuator/health" ]

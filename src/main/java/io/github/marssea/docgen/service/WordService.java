@@ -12,6 +12,8 @@ import org.apache.poi.xwpf.usermodel.XWPFParagraph;
 import org.apache.poi.xwpf.usermodel.BreakType;
 import org.springframework.stereotype.Service;
 
+import io.github.marssea.docgen.util.TemplateValidationUtil;
+
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -58,6 +60,9 @@ public class WordService {
      * @throws IOException               文件读取或写入异常
      */
     public byte[] generateWord(String templateName, Map<String, Object> data) throws IOException {
+        // 安全校验：防止路径遍历攻击，验证扩展名
+        TemplateValidationUtil.validateWordTemplateExtension(templateName);
+
         // 构建模板文件的完整路径
         Path templatePath = Paths.get(properties.getTemplatePath(), templateName);
         File templateFile = templatePath.toFile();
@@ -97,6 +102,9 @@ public class WordService {
      * @throws IOException               文件读取或写入异常
      */
     public byte[] generateBatch(String templateName, List<Map<String, Object>> dataList) throws IOException {
+        // 安全校验：防止路径遍历攻击，验证扩展名
+        TemplateValidationUtil.validateWordTemplateExtension(templateName);
+
         // 构建模板文件的完整路径
         Path templatePath = Paths.get(properties.getTemplatePath(), templateName);
         File templateFile = templatePath.toFile();

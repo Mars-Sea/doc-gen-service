@@ -7,6 +7,7 @@ import (
 	"io"
 	"mime/multipart"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 )
@@ -260,9 +261,9 @@ type DeleteResponse struct {
 //
 // 返回删除结果
 func (c *Client) DeleteTemplate(templateName string) (*DeleteResponse, error) {
-	// 构建 HTTP 请求
-	url := fmt.Sprintf("%s/api/v1/template/%s", c.BaseURL, templateName)
-	req, err := http.NewRequest(http.MethodDelete, url, nil)
+	// 构建 HTTP 请求（对模板名称进行 URL 编码，支持中文和特殊字符）
+	apiURL := fmt.Sprintf("%s/api/v1/template/%s", c.BaseURL, url.PathEscape(templateName))
+	req, err := http.NewRequest(http.MethodDelete, apiURL, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
@@ -304,9 +305,9 @@ func (c *Client) DeleteTemplate(templateName string) (*DeleteResponse, error) {
 //
 // 返回模板文件的字节数组
 func (c *Client) DownloadTemplate(templateName string) ([]byte, error) {
-	// 构建 HTTP 请求
-	url := fmt.Sprintf("%s/api/v1/template/download/%s", c.BaseURL, templateName)
-	req, err := http.NewRequest(http.MethodGet, url, nil)
+	// 构建 HTTP 请求（对模板名称进行 URL 编码，支持中文和特殊字符）
+	apiURL := fmt.Sprintf("%s/api/v1/template/download/%s", c.BaseURL, url.PathEscape(templateName))
+	req, err := http.NewRequest(http.MethodGet, apiURL, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
@@ -348,4 +349,3 @@ func (c *Client) SaveTemplate(templateName, outputPath string) error {
 
 	return os.WriteFile(outputPath, content, 0644)
 }
-

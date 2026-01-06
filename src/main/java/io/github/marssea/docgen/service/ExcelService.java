@@ -7,6 +7,7 @@ import com.alibaba.excel.write.metadata.fill.FillConfig;
 import com.alibaba.excel.write.style.column.LongestMatchColumnWidthStyleStrategy;
 import io.github.marssea.docgen.config.DocGenProperties;
 import io.github.marssea.docgen.exception.TemplateNotFoundException;
+import io.github.marssea.docgen.util.TemplateValidationUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -100,6 +101,9 @@ public class ExcelService {
     public byte[] fillTemplate(String templateName,
             Map<String, Object> data,
             Map<String, List<Map<String, Object>>> listData) {
+        // 安全校验：防止路径遍历攻击，验证扩展名
+        TemplateValidationUtil.validateExcelTemplateExtension(templateName);
+
         // 构建模板文件的完整路径
         Path templatePath = Paths.get(properties.getTemplatePath(), templateName);
         File templateFile = templatePath.toFile();

@@ -63,6 +63,20 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * 处理非法参数异常
+     * <p>
+     * 当请求参数不合法时返回 400 Bad Request（如路径遍历、非法文件类型等）
+     *
+     * @param e 非法参数异常
+     * @return HTTP 400 响应
+     */
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<Map<String, Object>> handleIllegalArgumentException(IllegalArgumentException e) {
+        log.warn("Illegal argument: {}", e.getMessage());
+        return buildErrorResponse(HttpStatus.BAD_REQUEST, "INVALID_ARGUMENT", e.getMessage());
+    }
+
+    /**
      * 处理 IO 异常
      * <p>
      * 当文件读写操作失败时返回 500 Internal Server Error

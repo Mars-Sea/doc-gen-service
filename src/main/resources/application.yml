@@ -1,6 +1,14 @@
 server:
   port: ${SERVER_PORT:8081}
 
+spring:
+  servlet:
+    multipart:
+      # 单个文件最大大小（可通过环境变量覆盖）
+      max-file-size: ${MAX_FILE_SIZE:50MB}
+      # 请求最大大小（可通过环境变量覆盖）
+      max-request-size: ${MAX_REQUEST_SIZE:50MB}
+
 docgen:
   template-path: ${TEMPLATE_PATH:./templates}
 
