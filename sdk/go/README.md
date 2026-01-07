@@ -136,7 +136,7 @@ if err != nil {
 ## 安装
 
 ```bash
-go get github.com/Mars-Sea/doc-gen-service/sdk/go@v0.0.3
+go get github.com/Mars-Sea/doc-gen-service/sdk/go@v0.0.4
 ```
 
 ## 快速开始

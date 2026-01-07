@@ -1,0 +1,16 @@
+spring:
+  profiles:
+    active: test
+
+docgen:
+  template-path: ${java.io.tmpdir}/doc-gen-test-templates
+
+server:
+  port: 0
+
+# Actuator for tests
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health

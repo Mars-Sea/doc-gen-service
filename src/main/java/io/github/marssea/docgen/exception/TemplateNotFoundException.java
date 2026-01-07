@@ -4,7 +4,7 @@ package io.github.marssea.docgen.exception;
  * 模板文件未找到异常
  * <p>
  * 当请求的模板文件在模板目录中不存在时抛出此异常。
- * 该异常会被全局异常处理器捕获并返回 HTTP 404 响应。
+ * 该异常会被全局异常处理器捕获并返回 HTTP 422 (UNPROCESSABLE_ENTITY) 响应。
  *
  * @author Mars-Sea
  * @since 1.0.0

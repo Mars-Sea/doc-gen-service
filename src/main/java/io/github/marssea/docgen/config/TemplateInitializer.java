@@ -74,11 +74,9 @@ public class TemplateInitializer implements CommandLineRunner {
 
     private void createLoopTableTemplate(Path templateDir) throws Exception {
         Path loopTemplatePath = templateDir.resolve("loop-table-template.docx");
-
-        try {
-            Files.deleteIfExists(loopTemplatePath);
-        } catch (Exception e) {
-            log.warn("Failed to delete existing loop template", e);
+        if (Files.exists(loopTemplatePath)) {
+            log.info("Loop table template already exists at: {}", loopTemplatePath);
+            return;
         }
 
         log.info("Creating loop table template at: {}", loopTemplatePath);
@@ -101,11 +99,9 @@ public class TemplateInitializer implements CommandLineRunner {
 
     private void createMultiTableTemplate(Path templateDir) throws Exception {
         Path multiTemplatePath = templateDir.resolve("multi-table-template.docx");
-
-        try {
-            Files.deleteIfExists(multiTemplatePath);
-        } catch (Exception e) {
-            log.warn("Failed to delete existing multi template", e);
+        if (Files.exists(multiTemplatePath)) {
+            log.info("Multi-table template already exists at: {}", multiTemplatePath);
+            return;
         }
 
         log.info("Creating multi-table template at: {}", multiTemplatePath);
