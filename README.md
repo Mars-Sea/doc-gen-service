@@ -151,7 +151,7 @@ DELETE /api/v1/template/{templateName}
 ## 📦 Go SDK
 
 ```bash
-go get github.com/Mars-Sea/doc-gen-service/sdk/go@v0.0.3
+go get github.com/Mars-Sea/doc-gen-service/sdk/go@v0.0.4
 ```
 
 ```go

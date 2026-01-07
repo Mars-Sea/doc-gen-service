@@ -20,6 +20,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.io.IOException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.util.Objects;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -93,8 +94,8 @@ public class DocController {
                                 bytes.length, fileName);
 
                 return ResponseEntity.ok()
-                                .contentType(MediaType.parseMediaType(
-                                                "application/vnd.openxmlformats-officedocument.wordprocessingml.document"))
+                                .contentType(Objects.requireNonNull(MediaType.parseMediaType(
+                                                "application/vnd.openxmlformats-officedocument.wordprocessingml.document")))
                                 .header(HttpHeaders.CONTENT_DISPOSITION,
                                                 "attachment; filename=\"" + fileName + ".docx\"; filename*=UTF-8''"
                                                                 + encodedFileName)
@@ -148,8 +149,8 @@ public class DocController {
                                 request.getDataList().size(), bytes.length, fileName);
 
                 return ResponseEntity.ok()
-                                .contentType(MediaType.parseMediaType(
-                                                "application/vnd.openxmlformats-officedocument.wordprocessingml.document"))
+                                .contentType(Objects.requireNonNull(MediaType.parseMediaType(
+                                                "application/vnd.openxmlformats-officedocument.wordprocessingml.document")))
                                 .header(HttpHeaders.CONTENT_DISPOSITION,
                                                 "attachment; filename=\"" + fileName + ".docx\"; filename*=UTF-8''"
                                                                 + encodedFileName)
@@ -205,8 +206,8 @@ public class DocController {
                                 bytes.length, fileName);
 
                 return ResponseEntity.ok()
-                                .contentType(MediaType.parseMediaType(
-                                                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                                .contentType(Objects.requireNonNull(MediaType.parseMediaType(
+                                                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")))
                                 .header(HttpHeaders.CONTENT_DISPOSITION,
                                                 "attachment; filename=\"" + fileName + ".xlsx\"; filename*=UTF-8''"
                                                                 + encodedFileName)
@@ -260,8 +261,8 @@ public class DocController {
                                 bytes.length, fileName);
 
                 return ResponseEntity.ok()
-                                .contentType(MediaType.parseMediaType(
-                                                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                                .contentType(Objects.requireNonNull(MediaType.parseMediaType(
+                                                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")))
                                 .header(HttpHeaders.CONTENT_DISPOSITION,
                                                 "attachment; filename=\"" + fileName + ".xlsx\"; filename*=UTF-8''"
                                                                 + encodedFileName)

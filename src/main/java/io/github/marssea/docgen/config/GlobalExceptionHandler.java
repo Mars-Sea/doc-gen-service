@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * 全局异常处理器
@@ -119,7 +120,7 @@ public class GlobalExceptionHandler {
         body.put("code", code);
         body.put("message", message);
         return ResponseEntity.status(status)
-                .contentType(MediaType.APPLICATION_JSON)
+                .contentType(Objects.requireNonNull(MediaType.APPLICATION_JSON))
                 .body(body);
     }
 }
