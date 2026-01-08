@@ -19,6 +19,12 @@ A document generation microservice based on **Spring Boot**, using **poi-tl** fo
 - 🐳 **Docker Ready** - Multi-architecture support (amd64/arm64)
 - 📚 **Go SDK** - Ready-to-use Go client library
 
+## 📝 Changelog
+
+### v0.0.4 (2026-01-08)
+- 🐛 **Fixed**: Batch Word generation now correctly adds page breaks between documents
+- ⚡ **Improved**: Using poi-tl native `NiceXWPFDocument.merge()` for better document format preservation
+
 ## 🚀 Quick Start
 
 ### Using Docker (Recommended)
@@ -39,7 +45,7 @@ open http://localhost:8081/swagger-ui.html
 mvn clean package -DskipTests
 
 # Run
-java -jar target/doc-gen-service-0.0.1-SNAPSHOT.jar
+java -jar target/doc-gen-service-0.0.4.jar
 ```
 
 ## 📖 API Reference

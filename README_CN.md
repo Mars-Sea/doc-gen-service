@@ -19,6 +19,12 @@
 - 🐳 **Docker 支持** - 多架构镜像 (amd64/arm64)
 - 📚 **Go SDK** - 开箱即用的 Go 客户端库
 
+## 📝 更新日志
+
+### v0.0.4 (2026-01-08)
+- 🐛 **修复**: 批量生成 Word 文档时正确添加分页符
+- ⚡ **优化**: 使用 poi-tl 原生 `NiceXWPFDocument.merge()` 方法，更好地保留文档格式
+
 ## 🚀 快速开始
 
 ### 使用 Docker（推荐）
@@ -39,7 +45,7 @@ open http://localhost:8081/swagger-ui.html
 mvn clean package -DskipTests
 
 # 运行
-java -jar target/doc-gen-service-0.0.1-SNAPSHOT.jar
+java -jar target/doc-gen-service-0.0.4.jar
 ```
 
 ## 📖 API 接口

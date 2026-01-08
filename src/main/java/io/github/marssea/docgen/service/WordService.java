@@ -3,18 +3,16 @@ package io.github.marssea.docgen.service;
 import com.deepoove.poi.XWPFTemplate;
 import com.deepoove.poi.config.Configure;
 import com.deepoove.poi.plugin.table.LoopRowTableRenderPolicy;
+import com.deepoove.poi.xwpf.NiceXWPFDocument;
 import io.github.marssea.docgen.config.DocGenProperties;
 import io.github.marssea.docgen.exception.TemplateNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.poi.xwpf.usermodel.XWPFDocument;
-import org.apache.poi.xwpf.usermodel.XWPFParagraph;
 import org.apache.poi.xwpf.usermodel.BreakType;
 import org.springframework.stereotype.Service;
 
 import io.github.marssea.docgen.util.TemplateValidationUtil;
 
-import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
@@ -93,7 +91,7 @@ public class WordService {
      * 批量生成 Word 文档
      * <p>
      * 使用同一模板渲染多条数据，每条数据生成一页，合并为单个文档。
-     * 页面之间自动添加分页符。
+     * 使用 poi-tl 原生的 NiceXWPFDocument.merge() 方法，确保文档格式和布局正确保留。
      *
      * @param templateName 模板文件名（需包含扩展名，如 template.docx）
      * @param dataList     数据列表，每条数据生成一页
@@ -118,8 +116,8 @@ public class WordService {
         log.info("Generating batch word document using template: {}, data count: {}",
                 templatePath, dataList.size());
 
-        // 创建主文档
-        XWPFDocument mainDoc = null;
+        // 使用 poi-tl 的 NiceXWPFDocument 进行文档合并
+        NiceXWPFDocument mainDoc = null;
 
         try {
             for (int i = 0; i < dataList.size(); i++) {
@@ -129,25 +127,21 @@ public class WordService {
                 Configure config = buildRenderConfig(data);
 
                 // 渲染当前数据
-                try (XWPFTemplate template = XWPFTemplate.compile(templateFile, config).render(data);
-                        ByteArrayOutputStream tempOut = new ByteArrayOutputStream()) {
+                XWPFTemplate template = XWPFTemplate.compile(templateFile, config).render(data);
+                NiceXWPFDocument currentDoc = template.getXWPFDocument();
 
-                    template.write(tempOut);
-
-                    if (mainDoc == null) {
-                        // 第一页：直接使用渲染结果作为主文档
-                        mainDoc = new XWPFDocument(new ByteArrayInputStream(tempOut.toByteArray()));
-                    } else {
-                        // 后续页：添加分页符，然后合并内容
-                        XWPFParagraph breakPara = mainDoc.createParagraph();
-                        breakPara.createRun().addBreak(BreakType.PAGE);
-
-                        // 读取渲染后的文档
-                        try (XWPFDocument pageDoc = new XWPFDocument(new ByteArrayInputStream(tempOut.toByteArray()))) {
-                            // 合并文档内容
-                            appendDocument(mainDoc, pageDoc);
-                        }
+                if (mainDoc == null) {
+                    // 第一页：直接使用渲染结果作为主文档
+                    mainDoc = currentDoc;
+                } else {
+                    // 后续页：先添加分页符，再合并文档
+                    mainDoc.createParagraph().createRun().addBreak(BreakType.PAGE);
+                    try {
+                        mainDoc = mainDoc.merge(currentDoc);
+                    } catch (Exception e) {
+                        throw new IOException("Failed to merge document page " + (i + 1), e);
                     }
+                    template.close();
                 }
 
                 log.debug("Rendered page {} of {}", i + 1, dataList.size());
@@ -170,39 +164,20 @@ public class WordService {
     }
 
     /**
-     * 将源文档的内容追加到目标文档
-     *
-     * @param target 目标文档
-     * @param source 源文档
-     */
-    private void appendDocument(XWPFDocument target, XWPFDocument source) {
-
-        // 复制段落
-        source.getParagraphs().forEach(para -> {
-            XWPFParagraph newPara = target.createParagraph();
-            newPara.getCTP().set(para.getCTP().copy());
-        });
-
-        // 复制表格
-        source.getTables().forEach(table -> {
-            target.createTable();
-            int pos = target.getTables().size() - 1;
-            target.getTables().get(pos).getCTTbl().set(table.getCTTbl().copy());
-        });
-    }
-
-    /**
      * 构建渲染配置
      * <p>
      * 自动检测数据中的集合类型字段，为其绑定 {@link LoopRowTableRenderPolicy}，
      * 使模板支持表格行循环渲染功能。
+     * <p>
+     * 使用 SpEL 表达式引擎，可以优雅地处理 null 值（渲染为空字符串）。
      *
      * @param data 渲染数据
      * @return poi-tl 渲染配置对象
      */
     private Configure buildRenderConfig(Map<String, Object> data) {
         LoopRowTableRenderPolicy policy = new LoopRowTableRenderPolicy();
-        var builder = Configure.builder();
+        var builder = Configure.builder()
+                .useSpringEL(); // 使用 SpEL 表达式，null 值会被渲染为空字符串
 
         if (data != null) {
             data.forEach((key, value) -> {
