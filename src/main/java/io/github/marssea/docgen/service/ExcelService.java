@@ -66,8 +66,8 @@ public class ExcelService {
             throw new IllegalArgumentException("Headers cannot be null or empty");
         }
 
-        if (data == null || data.isEmpty()) {
-            throw new IllegalArgumentException("Data cannot be null or empty");
+        if (data == null) {
+            throw new IllegalArgumentException("Data cannot be null");
         }
 
         log.info("Generating Excel document, sheet: {}, columns: {}, rows: {}",
