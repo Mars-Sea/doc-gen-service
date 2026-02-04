@@ -103,6 +103,10 @@ public class WordService {
         // 安全校验：防止路径遍历攻击，验证扩展名
         TemplateValidationUtil.validateWordTemplateExtension(templateName);
 
+        if (dataList == null || dataList.isEmpty()) {
+            throw new IllegalArgumentException("Data list cannot be null or empty");
+        }
+
         // 构建模板文件的完整路径
         Path templatePath = Paths.get(properties.getTemplatePath(), templateName);
         File templateFile = templatePath.toFile();
@@ -127,21 +131,21 @@ public class WordService {
                 Configure config = buildRenderConfig(data);
 
                 // 渲染当前数据
-                XWPFTemplate template = XWPFTemplate.compile(templateFile, config).render(data);
-                NiceXWPFDocument currentDoc = template.getXWPFDocument();
+                try (XWPFTemplate template = XWPFTemplate.compile(templateFile, config).render(data)) {
+                    NiceXWPFDocument currentDoc = template.getXWPFDocument();
 
-                if (mainDoc == null) {
-                    // 第一页：直接使用渲染结果作为主文档
-                    mainDoc = currentDoc;
-                } else {
-                    // 后续页：先添加分页符，再合并文档
-                    mainDoc.createParagraph().createRun().addBreak(BreakType.PAGE);
-                    try {
-                        mainDoc = mainDoc.merge(currentDoc);
-                    } catch (Exception e) {
-                        throw new IOException("Failed to merge document page " + (i + 1), e);
+                    if (mainDoc == null) {
+                        // 第一页：直接使用渲染结果作为主文档
+                        mainDoc = currentDoc;
+                    } else {
+                        // 后续页：先添加分页符，再合并文档
+                        mainDoc.createParagraph().createRun().addBreak(BreakType.PAGE);
+                        try {
+                            mainDoc = mainDoc.merge(currentDoc);
+                        } catch (Exception e) {
+                            throw new IOException("Failed to merge document page " + (i + 1), e);
+                        }
                     }
-                    template.close();
                 }
 
                 log.debug("Rendered page {} of {}", i + 1, dataList.size());

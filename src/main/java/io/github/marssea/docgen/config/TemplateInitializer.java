@@ -6,6 +6,7 @@ import org.apache.poi.xwpf.usermodel.XWPFDocument;
 import org.apache.poi.xwpf.usermodel.XWPFParagraph;
 import org.apache.poi.xwpf.usermodel.XWPFRun;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 import java.io.FileOutputStream;
@@ -20,6 +21,7 @@ import java.nio.file.Paths;
 @Slf4j
 @Component
 @RequiredArgsConstructor
+@Profile("dev")
 public class TemplateInitializer implements CommandLineRunner {
 
     private final DocGenProperties properties;
