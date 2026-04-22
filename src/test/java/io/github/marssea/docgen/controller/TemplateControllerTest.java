@@ -1,7 +1,6 @@
 package io.github.marssea.docgen.controller;
 
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -13,7 +12,6 @@ import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
-import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -139,13 +137,11 @@ class TemplateControllerTest {
             mockMvc.perform(get("/api/v1/template/download/report.docx"))
                     .andExpect(status().isOk())
                     .andExpect(
-                            header()
-                                    .string(
+                            header().string(
                                             "Content-Type",
                                             "application/vnd.openxmlformats-officedocument.wordprocessingml.document"))
                     .andExpect(
-                            header()
-                                    .string(
+                            header().string(
                                             "Content-Disposition",
                                             org.hamcrest.Matchers.containsString("report.docx")))
                     .andExpect(content().bytes(content));
@@ -160,13 +156,11 @@ class TemplateControllerTest {
             mockMvc.perform(get("/api/v1/template/download/data.xlsx"))
                     .andExpect(status().isOk())
                     .andExpect(
-                            header()
-                                    .string(
+                            header().string(
                                             "Content-Type",
                                             "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
                     .andExpect(
-                            header()
-                                    .string(
+                            header().string(
                                             "Content-Disposition",
                                             org.hamcrest.Matchers.containsString("data.xlsx")))
                     .andExpect(content().bytes(content));
