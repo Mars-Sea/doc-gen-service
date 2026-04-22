@@ -1,7 +1,6 @@
 package io.github.marssea.docgen.controller;
 
 import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -96,8 +95,7 @@ class DocControllerTest {
                                     .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isOk())
                     .andExpect(
-                            header()
-                                    .string(
+                            header().string(
                                             "Content-Disposition",
                                             org.hamcrest.Matchers.containsString(
                                                     "generated.docx")));
@@ -120,8 +118,7 @@ class DocControllerTest {
                                     .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isOk())
                     .andExpect(
-                            header()
-                                    .string(
+                            header().string(
                                             "Content-Disposition",
                                             org.hamcrest.Matchers.containsString(
                                                     "report_2025_test.docx")));
@@ -182,8 +179,7 @@ class DocControllerTest {
                                     .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isOk())
                     .andExpect(
-                            header()
-                                    .string(
+                            header().string(
                                             "Content-Disposition",
                                             org.hamcrest.Matchers.containsString(
                                                     "batch_output.docx")));
@@ -220,8 +216,7 @@ class DocControllerTest {
                                     .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isOk())
                     .andExpect(
-                            header()
-                                    .string(
+                            header().string(
                                             "Content-Disposition",
                                             org.hamcrest.Matchers.containsString(
                                                     "batch_generated.docx")));
@@ -244,8 +239,7 @@ class DocControllerTest {
                                     .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isOk())
                     .andExpect(
-                            header()
-                                    .string(
+                            header().string(
                                             "Content-Disposition",
                                             org.hamcrest.Matchers.containsString(
                                                     "batch_report_test.docx")));
@@ -275,8 +269,7 @@ class DocControllerTest {
                                     .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isOk())
                     .andExpect(
-                            header()
-                                    .string(
+                            header().string(
                                             "Content-Type",
                                             "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"));
         }
@@ -330,8 +323,7 @@ class DocControllerTest {
                                     .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isOk())
                     .andExpect(
-                            header()
-                                    .string(
+                            header().string(
                                             "Content-Disposition",
                                             org.hamcrest.Matchers.containsString(
                                                     "generated.xlsx")));
@@ -356,8 +348,7 @@ class DocControllerTest {
                                     .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isOk())
                     .andExpect(
-                            header()
-                                    .string(
+                            header().string(
                                             "Content-Disposition",
                                             org.hamcrest.Matchers.containsString(
                                                     "report_2025_test.xlsx")));
@@ -404,13 +395,11 @@ class DocControllerTest {
                                     .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isOk())
                     .andExpect(
-                            header()
-                                    .string(
+                            header().string(
                                             "Content-Type",
                                             "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
                     .andExpect(
-                            header()
-                                    .string(
+                            header().string(
                                             "Content-Disposition",
                                             org.hamcrest.Matchers.containsString(
                                                     "filled_report.xlsx")));
@@ -433,8 +422,7 @@ class DocControllerTest {
                                     .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isOk())
                     .andExpect(
-                            header()
-                                    .string(
+                            header().string(
                                             "Content-Disposition",
                                             org.hamcrest.Matchers.containsString("filled.xlsx")));
         }
