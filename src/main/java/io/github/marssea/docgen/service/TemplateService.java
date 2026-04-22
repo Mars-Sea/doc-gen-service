@@ -1,11 +1,6 @@
 package io.github.marssea.docgen.service;
 
 import io.github.marssea.docgen.config.DocGenProperties;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Service;
-import org.springframework.web.multipart.MultipartFile;
-
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -13,11 +8,15 @@ import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.util.List;
 import java.util.stream.Stream;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 
 /**
  * 模板文件管理服务
- * <p>
- * 提供模板文件的上传和列表查询功能。
+ *
+ * <p>提供模板文件的上传和列表查询功能。
  *
  * @author Mars-Sea
  * @since 1.0.0
@@ -40,12 +39,12 @@ public class TemplateService {
 
     /**
      * 上传模板文件
-     * <p>
-     * 将上传的文件保存到模板目录。如果文件已存在，将会覆盖。
+     *
+     * <p>将上传的文件保存到模板目录。如果文件已存在，将会覆盖。
      *
      * @param file 上传的模板文件
      * @return 保存后的文件名
-     * @throws IOException              文件写入异常
+     * @throws IOException 文件写入异常
      * @throws IllegalArgumentException 文件名无效或文件类型不支持
      */
     public String uploadTemplate(MultipartFile file) throws IOException {
@@ -84,8 +83,8 @@ public class TemplateService {
 
     /**
      * 获取所有模板文件列表
-     * <p>
-     * 列出模板目录下所有的 .docx 和 .xlsx 文件。
+     *
+     * <p>列出模板目录下所有的 .docx 和 .xlsx 文件。
      *
      * @return 模板文件名列表
      * @throws IOException 目录读取异常
@@ -101,15 +100,16 @@ public class TemplateService {
 
         // 列出所有 .docx 和 .xlsx 文件
         try (Stream<Path> paths = Files.list(templateDir)) {
-            List<String> templates = paths
-                    .filter(Files::isRegularFile)
-                    .map(path -> path.getFileName().toString())
-                    .filter(name -> {
-                        String lower = name.toLowerCase();
-                        return lower.endsWith(".docx") || lower.endsWith(".xlsx");
-                    })
-                    .sorted()
-                    .toList();
+            List<String> templates =
+                    paths.filter(Files::isRegularFile)
+                            .map(path -> path.getFileName().toString())
+                            .filter(
+                                    name -> {
+                                        String lower = name.toLowerCase();
+                                        return lower.endsWith(".docx") || lower.endsWith(".xlsx");
+                                    })
+                            .sorted()
+                            .toList();
 
             log.info("Found {} templates in directory: {}", templates.size(), templateDir);
             return templates;
@@ -129,12 +129,12 @@ public class TemplateService {
 
     /**
      * 删除模板文件
-     * <p>
-     * 从模板目录中删除指定的模板文件。
+     *
+     * <p>从模板目录中删除指定的模板文件。
      *
      * @param templateName 模板文件名
      * @return 是否删除成功
-     * @throws IOException              文件删除异常
+     * @throws IOException 文件删除异常
      * @throws IllegalArgumentException 文件名无效
      */
     public boolean deleteTemplate(String templateName) throws IOException {
@@ -144,7 +144,9 @@ public class TemplateService {
         }
 
         // 防止路径遍历攻击
-        if (templateName.contains("..") || templateName.contains("/") || templateName.contains("\\")) {
+        if (templateName.contains("..")
+                || templateName.contains("/")
+                || templateName.contains("\\")) {
             throw new IllegalArgumentException("非法的文件名");
         }
 
@@ -169,12 +171,12 @@ public class TemplateService {
 
     /**
      * 下载模板文件
-     * <p>
-     * 读取模板文件内容并返回字节数组。
+     *
+     * <p>读取模板文件内容并返回字节数组。
      *
      * @param templateName 模板文件名
      * @return 文件内容字节数组
-     * @throws IOException              文件读取异常
+     * @throws IOException 文件读取异常
      * @throws IllegalArgumentException 文件名无效或文件不存在
      */
     public byte[] downloadTemplate(String templateName) throws IOException {
@@ -184,7 +186,9 @@ public class TemplateService {
         }
 
         // 防止路径遍历攻击
-        if (templateName.contains("..") || templateName.contains("/") || templateName.contains("\\")) {
+        if (templateName.contains("..")
+                || templateName.contains("/")
+                || templateName.contains("\\")) {
             throw new IllegalArgumentException("非法的文件名");
         }
 

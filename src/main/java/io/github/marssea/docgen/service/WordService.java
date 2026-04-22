@@ -6,13 +6,7 @@ import com.deepoove.poi.plugin.table.LoopRowTableRenderPolicy;
 import com.deepoove.poi.xwpf.NiceXWPFDocument;
 import io.github.marssea.docgen.config.DocGenProperties;
 import io.github.marssea.docgen.exception.TemplateNotFoundException;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.apache.poi.xwpf.usermodel.BreakType;
-import org.springframework.stereotype.Service;
-
 import io.github.marssea.docgen.util.TemplateValidationUtil;
-
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
@@ -20,19 +14,24 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
 import java.util.Map;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.poi.xwpf.usermodel.BreakType;
+import org.springframework.stereotype.Service;
 
 /**
  * Word 文档生成服务
- * <p>
- * 使用 <a href="http://deepoove.com/poi-tl/">poi-tl</a> 库处理 Word 模板渲染。
- * 该服务负责加载 Word 模板文件，将传入的数据填充到模板中，并返回生成的文档二进制流。
- * <p>
- * 主要功能：
+ *
+ * <p>使用 <a href="http://deepoove.com/poi-tl/">poi-tl</a> 库处理 Word 模板渲染。 该服务负责加载 Word
+ * 模板文件，将传入的数据填充到模板中，并返回生成的文档二进制流。
+ *
+ * <p>主要功能：
+ *
  * <ul>
- * <li>加载指定的 Word 模板文件</li>
- * <li>自动检测集合类型数据，绑定循环表格渲染策略</li>
- * <li>渲染模板并返回文档字节数组</li>
- * <li>批量生成多页文档</li>
+ *   <li>加载指定的 Word 模板文件
+ *   <li>自动检测集合类型数据，绑定循环表格渲染策略
+ *   <li>渲染模板并返回文档字节数组
+ *   <li>批量生成多页文档
  * </ul>
  *
  * @author Mars-Sea
@@ -47,15 +46,15 @@ public class WordService {
 
     /**
      * 根据模板和数据生成 Word 文档
-     * <p>
-     * 该方法会自动检测数据中的集合类型字段（实现 {@link Iterable} 接口的对象），
-     * 并为其绑定 {@link LoopRowTableRenderPolicy}，从而支持表格行循环渲染。
+     *
+     * <p>该方法会自动检测数据中的集合类型字段（实现 {@link Iterable} 接口的对象）， 并为其绑定 {@link
+     * LoopRowTableRenderPolicy}，从而支持表格行循环渲染。
      *
      * @param templateName 模板文件名（需包含扩展名，如 template.docx）
-     * @param data         渲染数据，Key 对应模板中的占位符，Value 为填充值
+     * @param data 渲染数据，Key 对应模板中的占位符，Value 为填充值
      * @return 生成的文档二进制流
      * @throws TemplateNotFoundException 当指定的模板文件不存在时抛出
-     * @throws IOException               文件读取或写入异常
+     * @throws IOException 文件读取或写入异常
      */
     public byte[] generateWord(String templateName, Map<String, Object> data) throws IOException {
         // 安全校验：防止路径遍历攻击，验证扩展名
@@ -68,7 +67,8 @@ public class WordService {
         // 校验模板文件是否存在
         if (!templateFile.exists()) {
             log.error("Template file not found at: {}", templatePath);
-            throw new TemplateNotFoundException(templateName, "Template not found at: " + templatePath);
+            throw new TemplateNotFoundException(
+                    templateName, "Template not found at: " + templatePath);
         }
 
         log.info("Generating word document using template: {}", templatePath);
@@ -89,17 +89,17 @@ public class WordService {
 
     /**
      * 批量生成 Word 文档
-     * <p>
-     * 使用同一模板渲染多条数据，每条数据生成一页，合并为单个文档。
-     * 使用 poi-tl 原生的 NiceXWPFDocument.merge() 方法，确保文档格式和布局正确保留。
+     *
+     * <p>使用同一模板渲染多条数据，每条数据生成一页，合并为单个文档。 使用 poi-tl 原生的 NiceXWPFDocument.merge() 方法，确保文档格式和布局正确保留。
      *
      * @param templateName 模板文件名（需包含扩展名，如 template.docx）
-     * @param dataList     数据列表，每条数据生成一页
+     * @param dataList 数据列表，每条数据生成一页
      * @return 生成的文档二进制流
      * @throws TemplateNotFoundException 当指定的模板文件不存在时抛出
-     * @throws IOException               文件读取或写入异常
+     * @throws IOException 文件读取或写入异常
      */
-    public byte[] generateBatch(String templateName, List<Map<String, Object>> dataList) throws IOException {
+    public byte[] generateBatch(String templateName, List<Map<String, Object>> dataList)
+            throws IOException {
         // 安全校验：防止路径遍历攻击，验证扩展名
         TemplateValidationUtil.validateWordTemplateExtension(templateName);
 
@@ -114,11 +114,14 @@ public class WordService {
         // 校验模板文件是否存在
         if (!templateFile.exists()) {
             log.error("Template file not found at: {}", templatePath);
-            throw new TemplateNotFoundException(templateName, "Template not found at: " + templatePath);
+            throw new TemplateNotFoundException(
+                    templateName, "Template not found at: " + templatePath);
         }
 
-        log.info("Generating batch word document using template: {}, data count: {}",
-                templatePath, dataList.size());
+        log.info(
+                "Generating batch word document using template: {}, data count: {}",
+                templatePath,
+                dataList.size());
 
         // 使用 poi-tl 的 NiceXWPFDocument 进行文档合并
         NiceXWPFDocument mainDoc = null;
@@ -131,7 +134,8 @@ public class WordService {
                 Configure config = buildRenderConfig(data);
 
                 // 渲染当前数据
-                try (XWPFTemplate template = XWPFTemplate.compile(templateFile, config).render(data)) {
+                try (XWPFTemplate template =
+                        XWPFTemplate.compile(templateFile, config).render(data)) {
                     NiceXWPFDocument currentDoc = template.getXWPFDocument();
 
                     if (mainDoc == null) {
@@ -156,8 +160,10 @@ public class WordService {
                 if (mainDoc != null) {
                     mainDoc.write(out);
                 }
-                log.info("Batch word document generated successfully, pages: {}, size: {} bytes",
-                        dataList.size(), out.size());
+                log.info(
+                        "Batch word document generated successfully, pages: {}, size: {} bytes",
+                        dataList.size(),
+                        out.size());
                 return out.toByteArray();
             }
         } finally {
@@ -169,27 +175,26 @@ public class WordService {
 
     /**
      * 构建渲染配置
-     * <p>
-     * 自动检测数据中的集合类型字段，为其绑定 {@link LoopRowTableRenderPolicy}，
-     * 使模板支持表格行循环渲染功能。
-     * <p>
-     * 使用 SpEL 表达式引擎，可以优雅地处理 null 值（渲染为空字符串）。
+     *
+     * <p>自动检测数据中的集合类型字段，为其绑定 {@link LoopRowTableRenderPolicy}， 使模板支持表格行循环渲染功能。
+     *
+     * <p>使用 SpEL 表达式引擎，可以优雅地处理 null 值（渲染为空字符串）。
      *
      * @param data 渲染数据
      * @return poi-tl 渲染配置对象
      */
     private Configure buildRenderConfig(Map<String, Object> data) {
         LoopRowTableRenderPolicy policy = new LoopRowTableRenderPolicy();
-        var builder = Configure.builder()
-                .useSpringEL(); // 使用 SpEL 表达式，null 值会被渲染为空字符串
+        var builder = Configure.builder().useSpringEL(); // 使用 SpEL 表达式，null 值会被渲染为空字符串
 
         if (data != null) {
-            data.forEach((key, value) -> {
-                if (value instanceof Iterable) {
-                    log.debug("Auto-binding LoopRowTableRenderPolicy for field: {}", key);
-                    builder.bind(key, policy);
-                }
-            });
+            data.forEach(
+                    (key, value) -> {
+                        if (value instanceof Iterable) {
+                            log.debug("Auto-binding LoopRowTableRenderPolicy for field: {}", key);
+                            builder.bind(key, policy);
+                        }
+                    });
         }
 
         return builder.build();

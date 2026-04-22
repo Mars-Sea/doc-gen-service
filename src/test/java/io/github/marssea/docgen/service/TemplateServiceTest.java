@@ -1,25 +1,21 @@
 package io.github.marssea.docgen.service;
 
-import io.github.marssea.docgen.config.DocGenProperties;
-import org.junit.jupiter.api.*;
-import org.junit.jupiter.api.io.TempDir;
-import org.springframework.mock.web.MockMultipartFile;
+import static org.junit.jupiter.api.Assertions.*;
 
+import io.github.marssea.docgen.config.DocGenProperties;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.io.TempDir;
+import org.springframework.mock.web.MockMultipartFile;
 
-import static org.junit.jupiter.api.Assertions.*;
-
-/**
- * TemplateService 单元测试
- */
+/** TemplateService 单元测试 */
 @DisplayName("TemplateService 测试")
 class TemplateServiceTest {
 
-    @TempDir
-    Path tempDir;
+    @TempDir Path tempDir;
 
     private TemplateService templateService;
     private DocGenProperties properties;
@@ -38,11 +34,12 @@ class TemplateServiceTest {
         @Test
         @DisplayName("成功上传 .docx 文件")
         void shouldUploadDocxFile() throws IOException {
-            MockMultipartFile file = new MockMultipartFile(
-                    "file",
-                    "test-template.docx",
-                    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                    "test content".getBytes());
+            MockMultipartFile file =
+                    new MockMultipartFile(
+                            "file",
+                            "test-template.docx",
+                            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                            "test content".getBytes());
 
             String result = templateService.uploadTemplate(file);
 
@@ -53,11 +50,12 @@ class TemplateServiceTest {
         @Test
         @DisplayName("成功上传 .xlsx 文件")
         void shouldUploadXlsxFile() throws IOException {
-            MockMultipartFile file = new MockMultipartFile(
-                    "file",
-                    "test-data.xlsx",
-                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                    "test content".getBytes());
+            MockMultipartFile file =
+                    new MockMultipartFile(
+                            "file",
+                            "test-data.xlsx",
+                            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                            "test content".getBytes());
 
             String result = templateService.uploadTemplate(file);
 
@@ -68,15 +66,14 @@ class TemplateServiceTest {
         @Test
         @DisplayName("空文件应该抛出异常")
         void shouldThrowExceptionForEmptyFile() {
-            MockMultipartFile file = new MockMultipartFile(
-                    "file",
-                    "empty.docx",
-                    "application/octet-stream",
-                    new byte[0]);
+            MockMultipartFile file =
+                    new MockMultipartFile(
+                            "file", "empty.docx", "application/octet-stream", new byte[0]);
 
-            IllegalArgumentException exception = assertThrows(
-                    IllegalArgumentException.class,
-                    () -> templateService.uploadTemplate(file));
+            IllegalArgumentException exception =
+                    assertThrows(
+                            IllegalArgumentException.class,
+                            () -> templateService.uploadTemplate(file));
 
             assertEquals("上传的文件不能为空", exception.getMessage());
         }
@@ -84,9 +81,10 @@ class TemplateServiceTest {
         @Test
         @DisplayName("null 文件应该抛出异常")
         void shouldThrowExceptionForNullFile() {
-            IllegalArgumentException exception = assertThrows(
-                    IllegalArgumentException.class,
-                    () -> templateService.uploadTemplate(null));
+            IllegalArgumentException exception =
+                    assertThrows(
+                            IllegalArgumentException.class,
+                            () -> templateService.uploadTemplate(null));
 
             assertEquals("上传的文件不能为空", exception.getMessage());
         }
@@ -94,15 +92,14 @@ class TemplateServiceTest {
         @Test
         @DisplayName("不支持的文件类型应该抛出异常")
         void shouldThrowExceptionForUnsupportedFileType() {
-            MockMultipartFile file = new MockMultipartFile(
-                    "file",
-                    "test.pdf",
-                    "application/pdf",
-                    "test content".getBytes());
+            MockMultipartFile file =
+                    new MockMultipartFile(
+                            "file", "test.pdf", "application/pdf", "test content".getBytes());
 
-            IllegalArgumentException exception = assertThrows(
-                    IllegalArgumentException.class,
-                    () -> templateService.uploadTemplate(file));
+            IllegalArgumentException exception =
+                    assertThrows(
+                            IllegalArgumentException.class,
+                            () -> templateService.uploadTemplate(file));
 
             assertEquals("仅支持 .docx 和 .xlsx 格式的模板文件", exception.getMessage());
         }
@@ -110,11 +107,12 @@ class TemplateServiceTest {
         @Test
         @DisplayName("文件名中的非法字符应该被替换")
         void shouldSanitizeFileName() throws IOException {
-            MockMultipartFile file = new MockMultipartFile(
-                    "file",
-                    "test:file<name>.docx",
-                    "application/octet-stream",
-                    "test content".getBytes());
+            MockMultipartFile file =
+                    new MockMultipartFile(
+                            "file",
+                            "test:file<name>.docx",
+                            "application/octet-stream",
+                            "test content".getBytes());
 
             String result = templateService.uploadTemplate(file);
 
@@ -205,9 +203,10 @@ class TemplateServiceTest {
         @Test
         @DisplayName("空文件名应该抛出异常")
         void shouldThrowExceptionForEmptyFileName() {
-            IllegalArgumentException exception = assertThrows(
-                    IllegalArgumentException.class,
-                    () -> templateService.deleteTemplate(""));
+            IllegalArgumentException exception =
+                    assertThrows(
+                            IllegalArgumentException.class,
+                            () -> templateService.deleteTemplate(""));
 
             assertEquals("模板文件名不能为空", exception.getMessage());
         }
@@ -215,10 +214,12 @@ class TemplateServiceTest {
         @Test
         @DisplayName("路径遍历攻击应该被拒绝")
         void shouldRejectPathTraversal() {
-            assertThrows(IllegalArgumentException.class,
+            assertThrows(
+                    IllegalArgumentException.class,
                     () -> templateService.deleteTemplate("../etc/passwd"));
 
-            assertThrows(IllegalArgumentException.class,
+            assertThrows(
+                    IllegalArgumentException.class,
                     () -> templateService.deleteTemplate("sub/file.docx"));
         }
     }
@@ -241,9 +242,10 @@ class TemplateServiceTest {
         @Test
         @DisplayName("文件不存在时应该抛出异常")
         void shouldThrowExceptionWhenFileNotExist() {
-            IllegalArgumentException exception = assertThrows(
-                    IllegalArgumentException.class,
-                    () -> templateService.downloadTemplate("non-existent.docx"));
+            IllegalArgumentException exception =
+                    assertThrows(
+                            IllegalArgumentException.class,
+                            () -> templateService.downloadTemplate("non-existent.docx"));
 
             assertTrue(exception.getMessage().contains("模板文件不存在"));
         }
@@ -251,10 +253,12 @@ class TemplateServiceTest {
         @Test
         @DisplayName("路径遍历攻击应该被拒绝")
         void shouldRejectPathTraversal() {
-            assertThrows(IllegalArgumentException.class,
+            assertThrows(
+                    IllegalArgumentException.class,
                     () -> templateService.downloadTemplate("../etc/passwd"));
 
-            assertThrows(IllegalArgumentException.class,
+            assertThrows(
+                    IllegalArgumentException.class,
                     () -> templateService.downloadTemplate("sub\\file.docx"));
         }
     }

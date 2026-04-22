@@ -1,5 +1,9 @@
 package io.github.marssea.docgen.config;
 
+import java.io.FileOutputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.xwpf.usermodel.XWPFDocument;
@@ -9,15 +13,7 @@ import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
-import java.io.FileOutputStream;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-
-/**
- * 模板初始化器
- * 用于在应用启动时生成测试用的 Word 模板文件
- */
+/** 模板初始化器 用于在应用启动时生成测试用的 Word 模板文件 */
 @Slf4j
 @Component
 @RequiredArgsConstructor
@@ -89,8 +85,11 @@ public class TemplateInitializer implements CommandLineRunner {
             r.setBold(true);
             r.setFontSize(16);
 
-            createLoopTable(document, "goods", new String[] { "Product Name", "Category", "Price" },
-                    new String[] { "name", "category", "price" });
+            createLoopTable(
+                    document,
+                    "goods",
+                    new String[] {"Product Name", "Category", "Price"},
+                    new String[] {"name", "category", "price"});
 
             try (FileOutputStream out = new FileOutputStream(loopTemplatePath.toFile())) {
                 document.write(out);
@@ -121,9 +120,11 @@ public class TemplateInitializer implements CommandLineRunner {
             r1.setText("Product List:");
             r1.setBold(true);
 
-            createLoopTable(document, "products",
-                    new String[] { "Product Name", "Category", "Price" },
-                    new String[] { "name", "category", "price" });
+            createLoopTable(
+                    document,
+                    "products",
+                    new String[] {"Product Name", "Category", "Price"},
+                    new String[] {"name", "category", "price"});
 
             // 分隔段落
             document.createParagraph();
@@ -134,9 +135,11 @@ public class TemplateInitializer implements CommandLineRunner {
             r2.setText("Employee List:");
             r2.setBold(true);
 
-            createLoopTable(document, "employees",
-                    new String[] { "Name", "Department", "Score" },
-                    new String[] { "name", "dept", "score" });
+            createLoopTable(
+                    document,
+                    "employees",
+                    new String[] {"Name", "Department", "Score"},
+                    new String[] {"name", "dept", "score"});
 
             // 分隔段落
             document.createParagraph();
@@ -147,9 +150,11 @@ public class TemplateInitializer implements CommandLineRunner {
             r3.setText("Order List:");
             r3.setBold(true);
 
-            createLoopTable(document, "orders",
-                    new String[] { "Order ID", "Customer", "Amount" },
-                    new String[] { "orderId", "customer", "amount" });
+            createLoopTable(
+                    document,
+                    "orders",
+                    new String[] {"Order ID", "Customer", "Amount"},
+                    new String[] {"orderId", "customer", "amount"});
 
             try (FileOutputStream out = new FileOutputStream(multiTemplatePath.toFile())) {
                 document.write(out);
@@ -160,14 +165,14 @@ public class TemplateInitializer implements CommandLineRunner {
 
     /**
      * 创建循环表格的通用方法
-     * 
-     * @param document  Word文档
+     *
+     * @param document Word文档
      * @param fieldName 循环字段名（如 goods, employees）
-     * @param headers   表头数组
-     * @param fields    字段名数组（使用方括号语法）
+     * @param headers 表头数组
+     * @param fields 字段名数组（使用方括号语法）
      */
-    private void createLoopTable(XWPFDocument document, String fieldName,
-            String[] headers, String[] fields) {
+    private void createLoopTable(
+            XWPFDocument document, String fieldName, String[] headers, String[] fields) {
         org.apache.poi.xwpf.usermodel.XWPFTable table = document.createTable();
         table.setWidth("100%");
 
@@ -184,8 +189,7 @@ public class TemplateInitializer implements CommandLineRunner {
             placeholderRow.addNewTableCell();
         }
         XWPFParagraph pPlaceholder = placeholderRow.getCell(0).getParagraphs().get(0);
-        while (!pPlaceholder.getRuns().isEmpty())
-            pPlaceholder.removeRun(0);
+        while (!pPlaceholder.getRuns().isEmpty()) pPlaceholder.removeRun(0);
         XWPFRun rPlaceholder = pPlaceholder.createRun();
         rPlaceholder.setText("{{" + fieldName + "}}");
         for (int i = 1; i < headers.length; i++) {
@@ -200,8 +204,7 @@ public class TemplateInitializer implements CommandLineRunner {
 
         for (int i = 0; i < fields.length; i++) {
             XWPFParagraph pField = dataRow.getCell(i).getParagraphs().get(0);
-            while (!pField.getRuns().isEmpty())
-                pField.removeRun(0);
+            while (!pField.getRuns().isEmpty()) pField.removeRun(0);
             XWPFRun rField = pField.createRun();
             rField.setText("[" + fields[i] + "]");
         }

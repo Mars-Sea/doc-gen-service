@@ -1,30 +1,26 @@
 package io.github.marssea.docgen.service;
 
-import io.github.marssea.docgen.config.DocGenProperties;
-import io.github.marssea.docgen.exception.TemplateNotFoundException;
+import static org.junit.jupiter.api.Assertions.*;
+
 import com.alibaba.excel.EasyExcel;
 import com.alibaba.excel.ExcelWriter;
 import com.alibaba.excel.write.metadata.WriteSheet;
-import org.apache.poi.xssf.usermodel.XSSFWorkbook;
-import org.junit.jupiter.api.*;
-import org.junit.jupiter.api.io.TempDir;
-
+import io.github.marssea.docgen.config.DocGenProperties;
+import io.github.marssea.docgen.exception.TemplateNotFoundException;
 import java.io.ByteArrayInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.*;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.io.TempDir;
 
-import static org.junit.jupiter.api.Assertions.*;
-
-/**
- * ExcelService 单元测试
- */
+/** ExcelService 单元测试 */
 @DisplayName("ExcelService 测试")
 class ExcelServiceTest {
 
-    @TempDir
-    Path tempDir;
+    @TempDir Path tempDir;
 
     private ExcelService excelService;
     private DocGenProperties properties;
@@ -44,10 +40,11 @@ class ExcelServiceTest {
         @DisplayName("成功生成 Excel 文档")
         void shouldGenerateExcelDocument() {
             List<String> headers = Arrays.asList("姓名", "年龄", "城市");
-            List<List<Object>> data = Arrays.asList(
-                    Arrays.asList("张三", 25, "北京"),
-                    Arrays.asList("李四", 30, "上海"),
-                    Arrays.asList("王五", 28, "广州"));
+            List<List<Object>> data =
+                    Arrays.asList(
+                            Arrays.asList("张三", 25, "北京"),
+                            Arrays.asList("李四", 30, "上海"),
+                            Arrays.asList("王五", 28, "广州"));
 
             byte[] result = excelService.generateExcel("员工列表", headers, data);
 
@@ -68,8 +65,7 @@ class ExcelServiceTest {
         @DisplayName("sheetName 为 null 时应该使用默认值 Sheet1")
         void shouldUseDefaultSheetNameWhenNull() {
             List<String> headers = Arrays.asList("Column1", "Column2");
-            List<List<Object>> data = Arrays.asList(
-                    Arrays.asList("A", "B"));
+            List<List<Object>> data = Arrays.asList(Arrays.asList("A", "B"));
 
             byte[] result = excelService.generateExcel(null, headers, data);
 
@@ -86,8 +82,7 @@ class ExcelServiceTest {
         @DisplayName("sheetName 为空字符串时应该使用默认值 Sheet1")
         void shouldUseDefaultSheetNameWhenEmpty() {
             List<String> headers = Arrays.asList("Column1");
-            List<List<Object>> data = Arrays.asList(
-                    Arrays.asList("Value1"));
+            List<List<Object>> data = Arrays.asList(Arrays.asList("Value1"));
 
             byte[] result = excelService.generateExcel("", headers, data);
 
@@ -122,9 +117,10 @@ class ExcelServiceTest {
         void shouldThrowExceptionWhenTemplateNotFound() {
             Map<String, Object> data = Map.of("title", "Test");
 
-            TemplateNotFoundException exception = assertThrows(
-                    TemplateNotFoundException.class,
-                    () -> excelService.fillTemplate("non-existent.xlsx", data, null));
+            TemplateNotFoundException exception =
+                    assertThrows(
+                            TemplateNotFoundException.class,
+                            () -> excelService.fillTemplate("non-existent.xlsx", data, null));
 
             assertEquals("non-existent.xlsx", exception.getTemplateName());
         }
@@ -134,10 +130,12 @@ class ExcelServiceTest {
         void shouldThrowExceptionForInvalidTemplateName() {
             Map<String, Object> data = Map.of("title", "Test");
 
-            assertThrows(IllegalArgumentException.class,
+            assertThrows(
+                    IllegalArgumentException.class,
                     () -> excelService.fillTemplate("../etc/passwd", data, null));
 
-            assertThrows(IllegalArgumentException.class,
+            assertThrows(
+                    IllegalArgumentException.class,
                     () -> excelService.fillTemplate("template.docx", data, null));
         }
 
@@ -176,9 +174,7 @@ class ExcelServiceTest {
         }
     }
 
-    /**
-     * 创建简单的 Excel 模板用于测试
-     */
+    /** 创建简单的 Excel 模板用于测试 */
     private void createSimpleExcelTemplate(Path path) throws IOException {
         try (FileOutputStream out = new FileOutputStream(path.toFile());
                 ExcelWriter excelWriter = EasyExcel.write(out).build()) {

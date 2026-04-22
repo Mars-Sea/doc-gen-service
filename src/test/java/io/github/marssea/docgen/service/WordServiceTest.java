@@ -1,29 +1,25 @@
 package io.github.marssea.docgen.service;
 
+import static org.junit.jupiter.api.Assertions.*;
+
 import io.github.marssea.docgen.config.DocGenProperties;
 import io.github.marssea.docgen.exception.TemplateNotFoundException;
+import java.io.ByteArrayInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.nio.file.Path;
+import java.util.*;
 import org.apache.poi.xwpf.usermodel.XWPFDocument;
 import org.apache.poi.xwpf.usermodel.XWPFParagraph;
 import org.apache.poi.xwpf.usermodel.XWPFRun;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.io.TempDir;
 
-import java.io.ByteArrayInputStream;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.nio.file.Path;
-import java.util.*;
-
-import static org.junit.jupiter.api.Assertions.*;
-
-/**
- * WordService 单元测试
- */
+/** WordService 单元测试 */
 @DisplayName("WordService 测试")
 class WordServiceTest {
 
-    @TempDir
-    Path tempDir;
+    @TempDir Path tempDir;
 
     private WordService wordService;
     private DocGenProperties properties;
@@ -44,9 +40,10 @@ class WordServiceTest {
         void shouldThrowExceptionWhenTemplateNotFound() {
             Map<String, Object> data = Map.of("title", "Test");
 
-            TemplateNotFoundException exception = assertThrows(
-                    TemplateNotFoundException.class,
-                    () -> wordService.generateWord("non-existent.docx", data));
+            TemplateNotFoundException exception =
+                    assertThrows(
+                            TemplateNotFoundException.class,
+                            () -> wordService.generateWord("non-existent.docx", data));
 
             assertEquals("non-existent.docx", exception.getTemplateName());
         }
@@ -56,10 +53,12 @@ class WordServiceTest {
         void shouldThrowExceptionForInvalidTemplateName() {
             Map<String, Object> data = Map.of("title", "Test");
 
-            assertThrows(IllegalArgumentException.class,
+            assertThrows(
+                    IllegalArgumentException.class,
                     () -> wordService.generateWord("../etc/passwd", data));
 
-            assertThrows(IllegalArgumentException.class,
+            assertThrows(
+                    IllegalArgumentException.class,
                     () -> wordService.generateWord("template.xlsx", data));
         }
 
@@ -107,13 +106,13 @@ class WordServiceTest {
         @Test
         @DisplayName("模板不存在时应该抛出 TemplateNotFoundException")
         void shouldThrowExceptionWhenTemplateNotFound() {
-            List<Map<String, Object>> dataList = List.of(
-                    Map.of("name", "Test1"),
-                    Map.of("name", "Test2"));
+            List<Map<String, Object>> dataList =
+                    List.of(Map.of("name", "Test1"), Map.of("name", "Test2"));
 
-            TemplateNotFoundException exception = assertThrows(
-                    TemplateNotFoundException.class,
-                    () -> wordService.generateBatch("non-existent.docx", dataList));
+            TemplateNotFoundException exception =
+                    assertThrows(
+                            TemplateNotFoundException.class,
+                            () -> wordService.generateBatch("non-existent.docx", dataList));
 
             assertEquals("non-existent.docx", exception.getTemplateName());
         }
@@ -156,9 +155,7 @@ class WordServiceTest {
         }
     }
 
-    /**
-     * 创建简单的 Word 模板用于测试
-     */
+    /** 创建简单的 Word 模板用于测试 */
     private void createSimpleWordTemplate(Path path) throws IOException {
         try (XWPFDocument document = new XWPFDocument()) {
             XWPFParagraph titleParagraph = document.createParagraph();

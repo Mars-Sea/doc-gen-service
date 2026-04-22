@@ -5,9 +5,8 @@ import java.nio.file.Paths;
 
 /**
  * 模板路径安全验证工具类
- * <p>
- * 提供模板文件名和扩展名的安全校验功能，
- * 防止路径遍历攻击和非法文件类型攻击。
+ *
+ * <p>提供模板文件名和扩展名的安全校验功能， 防止路径遍历攻击和非法文件类型攻击。
  *
  * @author Mars-Sea
  * @since 1.0.0
@@ -20,8 +19,8 @@ public final class TemplateValidationUtil {
 
     /**
      * 验证模板文件名的安全性
-     * <p>
-     * 检查文件名是否包含路径遍历字符，防止访问模板目录外的文件。
+     *
+     * <p>检查文件名是否包含路径遍历字符，防止访问模板目录外的文件。
      *
      * @param templateName 模板文件名
      * @throws IllegalArgumentException 当文件名包含非法字符时抛出
@@ -32,7 +31,9 @@ public final class TemplateValidationUtil {
         }
 
         // 检查路径遍历字符
-        if (templateName.contains("..") || templateName.contains("/") || templateName.contains("\\")) {
+        if (templateName.contains("..")
+                || templateName.contains("/")
+                || templateName.contains("\\")) {
             throw new IllegalArgumentException("模板文件名包含非法字符");
         }
 
@@ -45,9 +46,8 @@ public final class TemplateValidationUtil {
 
     /**
      * 验证 Word 模板扩展名
-     * <p>
-     * 支持 .docx (推荐) 和 .doc (旧版) 格式
-     * 注意：poi-tl 仅支持 .docx 格式，.doc 文件可能会导致运行时错误
+     *
+     * <p>支持 .docx (推荐) 和 .doc (旧版) 格式 注意：poi-tl 仅支持 .docx 格式，.doc 文件可能会导致运行时错误
      *
      * @param templateName 模板文件名
      * @throws IllegalArgumentException 当扩展名不是 Word 格式时抛出
@@ -62,9 +62,8 @@ public final class TemplateValidationUtil {
 
     /**
      * 验证 Excel 模板扩展名
-     * <p>
-     * 支持 .xlsx (推荐) 和 .xls (旧版) 格式
-     * 注意：EasyExcel 主要支持 .xlsx 格式，.xls 文件可能功能受限
+     *
+     * <p>支持 .xlsx (推荐) 和 .xls (旧版) 格式 注意：EasyExcel 主要支持 .xlsx 格式，.xls 文件可能功能受限
      *
      * @param templateName 模板文件名
      * @throws IllegalArgumentException 当扩展名不是 Excel 格式时抛出

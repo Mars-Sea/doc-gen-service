@@ -1,11 +1,17 @@
 package io.github.marssea.docgen.controller;
 
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.marssea.docgen.model.ExcelGenRequest;
-import io.github.marssea.docgen.model.WordGenRequest;
 import io.github.marssea.docgen.model.WordBatchRequest;
+import io.github.marssea.docgen.model.WordGenRequest;
 import io.github.marssea.docgen.service.ExcelService;
 import io.github.marssea.docgen.service.WordService;
+import java.util.*;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -13,31 +19,18 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
-import java.util.*;
-
-import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.when;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
-
-/**
- * DocController 集成测试
- */
+/** DocController 集成测试 */
 @DisplayName("DocController 测试")
 @WebMvcTest(DocController.class)
 class DocControllerTest {
 
-    @Autowired
-    private MockMvc mockMvc;
+    @Autowired private MockMvc mockMvc;
 
-    @Autowired
-    private ObjectMapper objectMapper;
+    @Autowired private ObjectMapper objectMapper;
 
-    @MockBean
-    private WordService wordService;
+    @MockBean private WordService wordService;
 
-    @MockBean
-    private ExcelService excelService;
+    @MockBean private ExcelService excelService;
 
     @Nested
     @DisplayName("POST /api/v1/doc/word 测试")
@@ -54,14 +47,19 @@ class DocControllerTest {
             request.setData(Map.of("title", "Test Title"));
             request.setFileName("output");
 
-            mockMvc.perform(post("/api/v1/doc/word")
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .content(objectMapper.writeValueAsString(request)))
+            mockMvc.perform(
+                            post("/api/v1/doc/word")
+                                    .contentType(MediaType.APPLICATION_JSON)
+                                    .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isOk())
-                    .andExpect(header().string("Content-Disposition",
-                            org.hamcrest.Matchers.containsString("attachment")))
-                    .andExpect(header().string("Content-Type",
-                            "application/vnd.openxmlformats-officedocument.wordprocessingml.document"));
+                    .andExpect(
+                            header().string(
+                                            "Content-Disposition",
+                                            org.hamcrest.Matchers.containsString("attachment")))
+                    .andExpect(
+                            header().string(
+                                            "Content-Type",
+                                            "application/vnd.openxmlformats-officedocument.wordprocessingml.document"));
         }
 
         @Test
@@ -71,9 +69,10 @@ class DocControllerTest {
             request.setTemplateName("");
             request.setData(Map.of("title", "Test"));
 
-            mockMvc.perform(post("/api/v1/doc/word")
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .content(objectMapper.writeValueAsString(request)))
+            mockMvc.perform(
+                            post("/api/v1/doc/word")
+                                    .contentType(MediaType.APPLICATION_JSON)
+                                    .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isBadRequest());
         }
 
@@ -88,12 +87,16 @@ class DocControllerTest {
             request.setData(Map.of("title", "Test"));
             // fileName is null
 
-            mockMvc.perform(post("/api/v1/doc/word")
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .content(objectMapper.writeValueAsString(request)))
+            mockMvc.perform(
+                            post("/api/v1/doc/word")
+                                    .contentType(MediaType.APPLICATION_JSON)
+                                    .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isOk())
-                    .andExpect(header().string("Content-Disposition",
-                            org.hamcrest.Matchers.containsString("generated.docx")));
+                    .andExpect(
+                            header().string(
+                                            "Content-Disposition",
+                                            org.hamcrest.Matchers.containsString(
+                                                    "generated.docx")));
         }
     }
 
@@ -109,17 +112,19 @@ class DocControllerTest {
 
             WordBatchRequest request = new WordBatchRequest();
             request.setTemplateName("batch-template.docx");
-            request.setDataList(Arrays.asList(
-                    Map.of("name", "Page 1"),
-                    Map.of("name", "Page 2")));
+            request.setDataList(Arrays.asList(Map.of("name", "Page 1"), Map.of("name", "Page 2")));
             request.setFileName("batch_output");
 
-            mockMvc.perform(post("/api/v1/doc/word/batch")
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .content(objectMapper.writeValueAsString(request)))
+            mockMvc.perform(
+                            post("/api/v1/doc/word/batch")
+                                    .contentType(MediaType.APPLICATION_JSON)
+                                    .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isOk())
-                    .andExpect(header().string("Content-Disposition",
-                            org.hamcrest.Matchers.containsString("batch_output.docx")));
+                    .andExpect(
+                            header().string(
+                                            "Content-Disposition",
+                                            org.hamcrest.Matchers.containsString(
+                                                    "batch_output.docx")));
         }
 
         @Test
@@ -129,9 +134,10 @@ class DocControllerTest {
             request.setTemplateName("batch-template.docx");
             request.setDataList(new ArrayList<>());
 
-            mockMvc.perform(post("/api/v1/doc/word/batch")
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .content(objectMapper.writeValueAsString(request)))
+            mockMvc.perform(
+                            post("/api/v1/doc/word/batch")
+                                    .contentType(MediaType.APPLICATION_JSON)
+                                    .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isBadRequest());
         }
     }
@@ -144,22 +150,24 @@ class DocControllerTest {
         @DisplayName("成功生成 Excel 文档")
         void shouldGenerateExcelDocument() throws Exception {
             byte[] mockResult = "mock excel document".getBytes();
-            when(excelService.generateExcel(anyString(), anyList(), anyList())).thenReturn(mockResult);
+            when(excelService.generateExcel(anyString(), anyList(), anyList()))
+                    .thenReturn(mockResult);
 
             ExcelGenRequest request = new ExcelGenRequest();
             request.setSheetName("TestSheet");
             request.setHeaders(Arrays.asList("Name", "Age"));
-            request.setData(Arrays.asList(
-                    Arrays.asList("John", 25),
-                    Arrays.asList("Jane", 30)));
+            request.setData(Arrays.asList(Arrays.asList("John", 25), Arrays.asList("Jane", 30)));
             request.setFileName("excel_output");
 
-            mockMvc.perform(post("/api/v1/doc/excel")
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .content(objectMapper.writeValueAsString(request)))
+            mockMvc.perform(
+                            post("/api/v1/doc/excel")
+                                    .contentType(MediaType.APPLICATION_JSON)
+                                    .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isOk())
-                    .andExpect(header().string("Content-Type",
-                            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"));
+                    .andExpect(
+                            header().string(
+                                            "Content-Type",
+                                            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"));
         }
 
         @Test
@@ -170,9 +178,10 @@ class DocControllerTest {
             request.setHeaders(new ArrayList<>());
             request.setData(Arrays.asList(Arrays.asList("A", "B")));
 
-            mockMvc.perform(post("/api/v1/doc/excel")
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .content(objectMapper.writeValueAsString(request)))
+            mockMvc.perform(
+                            post("/api/v1/doc/excel")
+                                    .contentType(MediaType.APPLICATION_JSON)
+                                    .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isBadRequest());
         }
 
@@ -184,9 +193,10 @@ class DocControllerTest {
             request.setHeaders(Arrays.asList("Col1", "Col2"));
             request.setData(new ArrayList<>());
 
-            mockMvc.perform(post("/api/v1/doc/excel")
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .content(objectMapper.writeValueAsString(request)))
+            mockMvc.perform(
+                            post("/api/v1/doc/excel")
+                                    .contentType(MediaType.APPLICATION_JSON)
+                                    .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isBadRequest());
         }
     }
