@@ -1,11 +1,14 @@
 package io.github.marssea.docgen.controller;
 
 import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.github.marssea.docgen.exception.TemplateNotFoundException;
+import io.github.marssea.docgen.model.ExcelFillRequest;
 import io.github.marssea.docgen.model.ExcelGenRequest;
 import io.github.marssea.docgen.model.WordBatchRequest;
 import io.github.marssea.docgen.model.WordGenRequest;
@@ -93,10 +96,68 @@ class DocControllerTest {
                                     .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isOk())
                     .andExpect(
-                            header().string(
+                            header()
+                                    .string(
                                             "Content-Disposition",
                                             org.hamcrest.Matchers.containsString(
                                                     "generated.docx")));
+        }
+
+        @Test
+        @DisplayName("fileName 包含非法字符时应该被替换")
+        void shouldReplaceIllegalCharsInFileName() throws Exception {
+            byte[] mockResult = "mock word document".getBytes();
+            when(wordService.generateWord(anyString(), any())).thenReturn(mockResult);
+
+            WordGenRequest request = new WordGenRequest();
+            request.setTemplateName("test-template.docx");
+            request.setData(Map.of("title", "Test"));
+            request.setFileName("report/2025*test");
+
+            mockMvc.perform(
+                            post("/api/v1/doc/word")
+                                    .contentType(MediaType.APPLICATION_JSON)
+                                    .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isOk())
+                    .andExpect(
+                            header()
+                                    .string(
+                                            "Content-Disposition",
+                                            org.hamcrest.Matchers.containsString(
+                                                    "report_2025_test.docx")));
+        }
+
+        @Test
+        @DisplayName("模板不存在时应该返回 422")
+        void shouldReturn422WhenTemplateNotFound() throws Exception {
+            when(wordService.generateWord(anyString(), any()))
+                    .thenThrow(new TemplateNotFoundException("missing.docx", "not found"));
+
+            WordGenRequest request = new WordGenRequest();
+            request.setTemplateName("missing.docx");
+            request.setData(Map.of("title", "Test"));
+
+            mockMvc.perform(
+                            post("/api/v1/doc/word")
+                                    .contentType(MediaType.APPLICATION_JSON)
+                                    .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isUnprocessableEntity());
+        }
+
+        @Test
+        @DisplayName("生成空文档时应该返回 500")
+        void shouldReturn500WhenDocumentIsEmpty() throws Exception {
+            when(wordService.generateWord(anyString(), any())).thenReturn(new byte[0]);
+
+            WordGenRequest request = new WordGenRequest();
+            request.setTemplateName("test-template.docx");
+            request.setData(Map.of("title", "Test"));
+
+            mockMvc.perform(
+                            post("/api/v1/doc/word")
+                                    .contentType(MediaType.APPLICATION_JSON)
+                                    .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isInternalServerError());
         }
     }
 
@@ -121,7 +182,8 @@ class DocControllerTest {
                                     .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isOk())
                     .andExpect(
-                            header().string(
+                            header()
+                                    .string(
                                             "Content-Disposition",
                                             org.hamcrest.Matchers.containsString(
                                                     "batch_output.docx")));
@@ -139,6 +201,54 @@ class DocControllerTest {
                                     .contentType(MediaType.APPLICATION_JSON)
                                     .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isBadRequest());
+        }
+
+        @Test
+        @DisplayName("fileName 为 null 时应该使用默认文件名")
+        void shouldUseDefaultFileNameWhenNull() throws Exception {
+            byte[] mockResult = "mock batch word document".getBytes();
+            when(wordService.generateBatch(anyString(), anyList())).thenReturn(mockResult);
+
+            WordBatchRequest request = new WordBatchRequest();
+            request.setTemplateName("batch-template.docx");
+            request.setDataList(Arrays.asList(Map.of("name", "Page 1")));
+            // fileName is null
+
+            mockMvc.perform(
+                            post("/api/v1/doc/word/batch")
+                                    .contentType(MediaType.APPLICATION_JSON)
+                                    .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isOk())
+                    .andExpect(
+                            header()
+                                    .string(
+                                            "Content-Disposition",
+                                            org.hamcrest.Matchers.containsString(
+                                                    "batch_generated.docx")));
+        }
+
+        @Test
+        @DisplayName("fileName 包含非法字符时应该被替换")
+        void shouldReplaceIllegalCharsInFileName() throws Exception {
+            byte[] mockResult = "mock batch word document".getBytes();
+            when(wordService.generateBatch(anyString(), anyList())).thenReturn(mockResult);
+
+            WordBatchRequest request = new WordBatchRequest();
+            request.setTemplateName("batch-template.docx");
+            request.setDataList(Arrays.asList(Map.of("name", "Page 1")));
+            request.setFileName("batch:report?test");
+
+            mockMvc.perform(
+                            post("/api/v1/doc/word/batch")
+                                    .contentType(MediaType.APPLICATION_JSON)
+                                    .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isOk())
+                    .andExpect(
+                            header()
+                                    .string(
+                                            "Content-Disposition",
+                                            org.hamcrest.Matchers.containsString(
+                                                    "batch_report_test.docx")));
         }
     }
 
@@ -165,7 +275,8 @@ class DocControllerTest {
                                     .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isOk())
                     .andExpect(
-                            header().string(
+                            header()
+                                    .string(
                                             "Content-Type",
                                             "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"));
         }
@@ -198,6 +309,150 @@ class DocControllerTest {
                                     .contentType(MediaType.APPLICATION_JSON)
                                     .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isBadRequest());
+        }
+
+        @Test
+        @DisplayName("fileName 为 null 时应该使用默认文件名")
+        void shouldUseDefaultFileNameWhenNull() throws Exception {
+            byte[] mockResult = "mock excel document".getBytes();
+            when(excelService.generateExcel(anyString(), anyList(), anyList()))
+                    .thenReturn(mockResult);
+
+            ExcelGenRequest request = new ExcelGenRequest();
+            request.setSheetName("TestSheet");
+            request.setHeaders(Arrays.asList("Col1"));
+            request.setData(Arrays.asList(Arrays.asList("A")));
+            // fileName is null
+
+            mockMvc.perform(
+                            post("/api/v1/doc/excel")
+                                    .contentType(MediaType.APPLICATION_JSON)
+                                    .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isOk())
+                    .andExpect(
+                            header()
+                                    .string(
+                                            "Content-Disposition",
+                                            org.hamcrest.Matchers.containsString(
+                                                    "generated.xlsx")));
+        }
+
+        @Test
+        @DisplayName("fileName 包含非法字符时应该被替换")
+        void shouldReplaceIllegalCharsInFileName() throws Exception {
+            byte[] mockResult = "mock excel document".getBytes();
+            when(excelService.generateExcel(anyString(), anyList(), anyList()))
+                    .thenReturn(mockResult);
+
+            ExcelGenRequest request = new ExcelGenRequest();
+            request.setSheetName("TestSheet");
+            request.setHeaders(Arrays.asList("Col1"));
+            request.setData(Arrays.asList(Arrays.asList("A")));
+            request.setFileName("report/2025*test");
+
+            mockMvc.perform(
+                            post("/api/v1/doc/excel")
+                                    .contentType(MediaType.APPLICATION_JSON)
+                                    .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isOk())
+                    .andExpect(
+                            header()
+                                    .string(
+                                            "Content-Disposition",
+                                            org.hamcrest.Matchers.containsString(
+                                                    "report_2025_test.xlsx")));
+        }
+
+        @Test
+        @DisplayName("生成空文档时应该返回 500")
+        void shouldReturn500WhenDocumentIsEmpty() throws Exception {
+            when(excelService.generateExcel(anyString(), anyList(), anyList()))
+                    .thenReturn(new byte[0]);
+
+            ExcelGenRequest request = new ExcelGenRequest();
+            request.setSheetName("TestSheet");
+            request.setHeaders(Arrays.asList("Col1"));
+            request.setData(Arrays.asList(Arrays.asList("A")));
+
+            mockMvc.perform(
+                            post("/api/v1/doc/excel")
+                                    .contentType(MediaType.APPLICATION_JSON)
+                                    .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isInternalServerError());
+        }
+    }
+
+    @Nested
+    @DisplayName("POST /api/v1/doc/excel/fill 测试")
+    class FillExcelTemplateTest {
+
+        @Test
+        @DisplayName("成功填充 Excel 模板")
+        void shouldFillExcelTemplate() throws Exception {
+            byte[] mockResult = "mock filled excel document".getBytes();
+            when(excelService.fillTemplate(anyString(), any(), any())).thenReturn(mockResult);
+
+            ExcelFillRequest request = new ExcelFillRequest();
+            request.setTemplateName("report-template.xlsx");
+            request.setData(Map.of("title", "Sales Report"));
+            request.setListData(Map.of("items", Arrays.asList(Map.of("name", "A", "price", 100))));
+            request.setFileName("filled_report");
+
+            mockMvc.perform(
+                            post("/api/v1/doc/excel/fill")
+                                    .contentType(MediaType.APPLICATION_JSON)
+                                    .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isOk())
+                    .andExpect(
+                            header()
+                                    .string(
+                                            "Content-Type",
+                                            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                    .andExpect(
+                            header()
+                                    .string(
+                                            "Content-Disposition",
+                                            org.hamcrest.Matchers.containsString(
+                                                    "filled_report.xlsx")));
+        }
+
+        @Test
+        @DisplayName("fileName 为 null 时应该使用默认文件名")
+        void shouldUseDefaultFileNameWhenNull() throws Exception {
+            byte[] mockResult = "mock filled excel document".getBytes();
+            when(excelService.fillTemplate(anyString(), any(), any())).thenReturn(mockResult);
+
+            ExcelFillRequest request = new ExcelFillRequest();
+            request.setTemplateName("report-template.xlsx");
+            request.setData(Map.of("title", "Sales Report"));
+            // fileName is null
+
+            mockMvc.perform(
+                            post("/api/v1/doc/excel/fill")
+                                    .contentType(MediaType.APPLICATION_JSON)
+                                    .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isOk())
+                    .andExpect(
+                            header()
+                                    .string(
+                                            "Content-Disposition",
+                                            org.hamcrest.Matchers.containsString("filled.xlsx")));
+        }
+
+        @Test
+        @DisplayName("生成空文档时应该返回 500")
+        void shouldReturn500WhenDocumentIsEmpty() throws Exception {
+            when(excelService.fillTemplate(anyString(), any(), any())).thenReturn(new byte[0]);
+
+            ExcelFillRequest request = new ExcelFillRequest();
+            request.setTemplateName("report-template.xlsx");
+            request.setData(Map.of("title", "Sales Report"));
+
+            mockMvc.perform(
+                            post("/api/v1/doc/excel/fill")
+                                    .contentType(MediaType.APPLICATION_JSON)
+                                    .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isInternalServerError());
         }
     }
 }
