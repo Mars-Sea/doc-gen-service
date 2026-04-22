@@ -89,9 +89,9 @@ class WordServiceTest {
         @DisplayName("data 为空 Map 时应该正常生成文档")
         void shouldGenerateWordDocumentWithEmptyData() throws Exception {
             Path templatePath = tempDir.resolve("simple.docx");
-            createSimpleWordTemplate(templatePath);
+            createPlainWordTemplate(templatePath);
 
-            // poi-tl 需要非 null 的数据，使用空 Map
+            // 无占位符的模板，空数据也能正常渲染
             byte[] result = wordService.generateWord("simple.docx", new HashMap<>());
 
             assertNotNull(result);
@@ -140,18 +140,19 @@ class WordServiceTest {
         }
 
         @Test
-        @DisplayName("空数据列表应该返回空文档")
-        void shouldReturnEmptyDocumentForEmptyDataList() throws Exception {
+        @DisplayName("空数据列表应该抛出 IllegalArgumentException")
+        void shouldThrowExceptionForEmptyDataList() throws Exception {
             Path templatePath = tempDir.resolve("empty-batch.docx");
             createSimpleWordTemplate(templatePath);
 
             List<Map<String, Object>> dataList = new ArrayList<>();
 
-            byte[] result = wordService.generateBatch("empty-batch.docx", dataList);
+            IllegalArgumentException exception =
+                    assertThrows(
+                            IllegalArgumentException.class,
+                            () -> wordService.generateBatch("empty-batch.docx", dataList));
 
-            assertNotNull(result);
-            // 空数据列表生成的文档长度为 0
-            assertEquals(0, result.length);
+            assertEquals("Data list cannot be null or empty", exception.getMessage());
         }
     }
 
@@ -165,6 +166,19 @@ class WordServiceTest {
             XWPFParagraph contentParagraph = document.createParagraph();
             XWPFRun contentRun = contentParagraph.createRun();
             contentRun.setText("Content: {{content}}");
+
+            try (FileOutputStream out = new FileOutputStream(path.toFile())) {
+                document.write(out);
+            }
+        }
+    }
+
+    /** 创建无占位符的 Word 模板用于测试 */
+    private void createPlainWordTemplate(Path path) throws IOException {
+        try (XWPFDocument document = new XWPFDocument()) {
+            XWPFParagraph paragraph = document.createParagraph();
+            XWPFRun run = paragraph.createRun();
+            run.setText("Plain document without placeholders");
 
             try (FileOutputStream out = new FileOutputStream(path.toFile())) {
                 document.write(out);
