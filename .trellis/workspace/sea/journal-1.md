@@ -39,3 +39,37 @@ Added Spotless formatting, CLAUDE.md, Claude Code skills (verify, build-docker),
 ### Next Steps
 
 - None - task complete
+
+
+## Session 2: Add TemplateController tests
+
+**Date**: 2026-04-22
+**Task**: Add TemplateController tests
+**Branch**: `main`
+
+### Summary
+
+Added TemplateControllerTest with 8 tests covering upload/list/delete/download APIs. TemplateController coverage: 100%. Controller package coverage: 80%. Total project coverage: 47%.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `63551d9` | (see git log) |
+| `4b61f78` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
