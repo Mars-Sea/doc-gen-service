@@ -49,10 +49,21 @@ public class WordBatchRequest {
      * 数据列表
      *
      * <p>每个 Map 对应一页的渲染数据，Key 对应模板中的占位符。 列表中有多少条数据，生成的文档就有多少页。
+     *
+     * <p>支持图片载荷（模板使用 {@code {{@imageKey}}} 语法）：
+     *
+     * <pre>
+     * {
+     *   "type": "image",
+     *   "url": "https://example.com/logo.png"
+     * }
+     * </pre>
+     *
+     * <p>图片宽高默认 300 x 200，可通过 width 和 height 覆盖。
      */
     @NotEmpty(message = "数据列表不能为空")
     @Schema(
-            description = "数据列表，每条数据生成一页",
+            description = "数据列表，每条数据生成一页。支持图片载荷（type: image）。",
             example =
                     "[{\"name\": \"张三\", \"award\": \"一等奖\"}, {\"name\": \"李四\", \"award\":"
                             + " \"二等奖\"}]",

@@ -6,12 +6,14 @@ import com.deepoove.poi.plugin.table.LoopRowTableRenderPolicy;
 import com.deepoove.poi.xwpf.NiceXWPFDocument;
 import io.github.marssea.docgen.config.DocGenProperties;
 import io.github.marssea.docgen.exception.TemplateNotFoundException;
+import io.github.marssea.docgen.util.ImagePayloadConverter;
 import io.github.marssea.docgen.util.TemplateValidationUtil;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
@@ -43,6 +45,7 @@ import org.springframework.stereotype.Service;
 public class WordService {
 
     private final DocGenProperties properties;
+    private final ImagePayloadConverter imagePayloadConverter;
 
     /**
      * 根据模板和数据生成 Word 文档
@@ -73,11 +76,15 @@ public class WordService {
 
         log.info("Generating word document using template: {}", templatePath);
 
+        // 预处理图片载荷：将结构化图片对象转换为 PictureRenderData
+        Map<String, Object> processedData = preprocessImagePayloads(data);
+
         // 构建渲染配置
-        Configure config = buildRenderConfig(data);
+        Configure config = buildRenderConfig(processedData);
 
         // 编译模板并渲染数据
-        try (XWPFTemplate template = XWPFTemplate.compile(templateFile, config).render(data);
+        try (XWPFTemplate template =
+                        XWPFTemplate.compile(templateFile, config).render(processedData);
                 ByteArrayOutputStream out = new ByteArrayOutputStream()) {
 
             // 将渲染结果写入内存流
@@ -130,11 +137,15 @@ public class WordService {
             for (int i = 0; i < dataList.size(); i++) {
                 Map<String, Object> data = dataList.get(i);
 
+                // 预处理图片载荷：将结构化图片对象转换为 PictureRenderData
+                Map<String, Object> processedData = preprocessImagePayloads(data);
+
                 // 构建渲染配置
-                Configure config = buildRenderConfig(data);
+                Configure config = buildRenderConfig(processedData);
 
                 // 渲染当前数据（不放在 try-with-resources 中，避免关闭后仍需要用的文档）
-                XWPFTemplate template = XWPFTemplate.compile(templateFile, config).render(data);
+                XWPFTemplate template =
+                        XWPFTemplate.compile(templateFile, config).render(processedData);
                 NiceXWPFDocument currentDoc = template.getXWPFDocument();
 
                 if (mainDoc == null) {
@@ -201,5 +212,34 @@ public class WordService {
         }
 
         return builder.build();
+    }
+
+    /**
+     * 预处理图片载荷
+     *
+     * <p>遍历数据 Map，检测结构化图片对象（包含 {@code type: "image"} 字段）， 将其转换为 poi-tl 的 {@link
+     * PictureRenderData}。非图片字段保持不变。
+     *
+     * @param data 原始渲染数据
+     * @return 预处理后的渲染数据（图片字段已转换为 PictureRenderData）
+     */
+    private Map<String, Object> preprocessImagePayloads(Map<String, Object> data) {
+        if (data == null) {
+            return null;
+        }
+
+        Map<String, Object> processed = new HashMap<>();
+        data.forEach(
+                (key, value) -> {
+                    if (imagePayloadConverter.isImagePayload(value)) {
+                        @SuppressWarnings("unchecked")
+                        Map<String, Object> payload = (Map<String, Object>) value;
+                        log.debug("Converting image payload for field: {}", key);
+                        processed.put(key, imagePayloadConverter.convert(key, payload));
+                    } else {
+                        processed.put(key, value);
+                    }
+                });
+        return processed;
     }
 }

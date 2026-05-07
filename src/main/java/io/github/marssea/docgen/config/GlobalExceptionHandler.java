@@ -1,5 +1,6 @@
 package io.github.marssea.docgen.config;
 
+import io.github.marssea.docgen.exception.InvalidImagePayloadException;
 import io.github.marssea.docgen.exception.TemplateNotFoundException;
 import java.io.IOException;
 import java.util.HashMap;
@@ -76,6 +77,21 @@ public class GlobalExceptionHandler {
             IllegalArgumentException e) {
         log.warn("Illegal argument: {}", e.getMessage());
         return buildErrorResponse(HttpStatus.BAD_REQUEST, "INVALID_ARGUMENT", e.getMessage());
+    }
+
+    /**
+     * 处理无效图片载荷异常
+     *
+     * <p>当请求数据中的图片载荷校验失败时返回 400 Bad Request 包括 URL 协议错误、格式不支持、必填字段缺失、图片下载失败等场景
+     *
+     * @param e 无效图片载荷异常
+     * @return HTTP 400 响应
+     */
+    @ExceptionHandler(InvalidImagePayloadException.class)
+    public ResponseEntity<Map<String, Object>> handleInvalidImagePayload(
+            InvalidImagePayloadException e) {
+        log.warn("Invalid image payload: {}", e.getMessage());
+        return buildErrorResponse(HttpStatus.BAD_REQUEST, "INVALID_IMAGE_PAYLOAD", e.getMessage());
     }
 
     /**

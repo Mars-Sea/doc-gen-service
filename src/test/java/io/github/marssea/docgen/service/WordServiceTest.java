@@ -3,7 +3,9 @@ package io.github.marssea.docgen.service;
 import static org.junit.jupiter.api.Assertions.*;
 
 import io.github.marssea.docgen.config.DocGenProperties;
+import io.github.marssea.docgen.exception.InvalidImagePayloadException;
 import io.github.marssea.docgen.exception.TemplateNotFoundException;
+import io.github.marssea.docgen.util.ImagePayloadConverter;
 import java.io.ByteArrayInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -23,12 +25,14 @@ class WordServiceTest {
 
     private WordService wordService;
     private DocGenProperties properties;
+    private ImagePayloadConverter imagePayloadConverter;
 
     @BeforeEach
     void setUp() {
         properties = new DocGenProperties();
         properties.setTemplatePath(tempDir.toString());
-        wordService = new WordService(properties);
+        imagePayloadConverter = new ImagePayloadConverter();
+        wordService = new WordService(properties, imagePayloadConverter);
     }
 
     @Nested
@@ -100,6 +104,101 @@ class WordServiceTest {
     }
 
     @Nested
+    @DisplayName("generateWord 图片载荷测试")
+    class GenerateWordImagePayloadTest {
+
+        @Test
+        @DisplayName("无效图片载荷应抛出 InvalidImagePayloadException")
+        void shouldThrowExceptionForInvalidImagePayload() throws Exception {
+            Path templatePath = tempDir.resolve("image-template.docx");
+            createSimpleWordTemplate(templatePath);
+
+            // 使用不支持的协议
+            Map<String, Object> data = new HashMap<>();
+            Map<String, Object> imagePayload = new HashMap<>();
+            imagePayload.put("type", "image");
+            imagePayload.put("url", "ftp://example.com/logo.png");
+            imagePayload.put("format", "png");
+            imagePayload.put("width", 120);
+            imagePayload.put("height", 60);
+            data.put("logo", imagePayload);
+            data.put("title", "Test");
+
+            assertThrows(
+                    InvalidImagePayloadException.class,
+                    () -> wordService.generateWord("image-template.docx", data));
+        }
+
+        @Test
+        @DisplayName("不支持的图片格式应抛出 InvalidImagePayloadException")
+        void shouldThrowExceptionForUnsupportedFormat() throws Exception {
+            Path templatePath = tempDir.resolve("image-format-template.docx");
+            createSimpleWordTemplate(templatePath);
+
+            Map<String, Object> data = new HashMap<>();
+            Map<String, Object> imagePayload = new HashMap<>();
+            imagePayload.put("type", "image");
+            imagePayload.put("url", "https://example.com/logo.gif");
+            imagePayload.put("format", "gif");
+            imagePayload.put("width", 120);
+            imagePayload.put("height", 60);
+            data.put("logo", imagePayload);
+            data.put("title", "Test");
+
+            InvalidImagePayloadException ex =
+                    assertThrows(
+                            InvalidImagePayloadException.class,
+                            () -> wordService.generateWord("image-format-template.docx", data));
+            assertTrue(ex.getMessage().contains("not supported"));
+        }
+
+        @Test
+        @DisplayName("缺少必填字段的图片载荷应抛出异常")
+        void shouldThrowExceptionForIncompleteImagePayload() throws Exception {
+            Path templatePath = tempDir.resolve("image-incomplete-template.docx");
+            createSimpleWordTemplate(templatePath);
+
+            Map<String, Object> data = new HashMap<>();
+            Map<String, Object> imagePayload = new HashMap<>();
+            imagePayload.put("type", "image");
+            imagePayload.put("url", "https://example.com/logo.png");
+            // 缺少 format, width, height
+            data.put("logo", imagePayload);
+            data.put("title", "Test");
+
+            assertThrows(
+                    InvalidImagePayloadException.class,
+                    () -> wordService.generateWord("image-incomplete-template.docx", data));
+        }
+
+        @Test
+        @DisplayName("包含图片载荷的普通文本字段应正常处理")
+        void shouldHandleMixedDataWithImageAndText() throws Exception {
+            Path templatePath = tempDir.resolve("mixed-template.docx");
+            createSimpleWordTemplate(templatePath);
+
+            // 混合数据：包含普通文本和无效图片载荷
+            Map<String, Object> data = new HashMap<>();
+            data.put("title", "Normal Title");
+            data.put("content", "Normal Content");
+
+            // 添加一个无效图片载荷（格式错误）
+            Map<String, Object> imagePayload = new HashMap<>();
+            imagePayload.put("type", "image");
+            imagePayload.put("url", "ftp://example.com/logo.png");
+            imagePayload.put("format", "png");
+            imagePayload.put("width", 120);
+            imagePayload.put("height", 60);
+            data.put("logo", imagePayload);
+
+            // 应该抛出异常，因为 logo 字段校验失败
+            assertThrows(
+                    InvalidImagePayloadException.class,
+                    () -> wordService.generateWord("mixed-template.docx", data));
+        }
+    }
+
+    @Nested
     @DisplayName("generateBatch 测试")
     class GenerateBatchTest {
 
@@ -153,6 +252,59 @@ class WordServiceTest {
                             () -> wordService.generateBatch("empty-batch.docx", dataList));
 
             assertEquals("Data list cannot be null or empty", exception.getMessage());
+        }
+
+        @Test
+        @DisplayName("批量生成中包含无效图片载荷应抛出异常")
+        void shouldThrowExceptionForInvalidImagePayloadInBatch() throws Exception {
+            Path templatePath = tempDir.resolve("batch-image-template.docx");
+            createSimpleWordTemplate(templatePath);
+
+            List<Map<String, Object>> dataList = new ArrayList<>();
+            dataList.add(Map.of("title", "Page 1", "content", "Content 1"));
+
+            // 第二条数据包含无效图片载荷
+            Map<String, Object> page2 = new HashMap<>();
+            page2.put("title", "Page 2");
+            Map<String, Object> imagePayload = new HashMap<>();
+            imagePayload.put("type", "image");
+            imagePayload.put("url", "ftp://example.com/logo.png");
+            imagePayload.put("format", "png");
+            imagePayload.put("width", 120);
+            imagePayload.put("height", 60);
+            page2.put("logo", imagePayload);
+            dataList.add(page2);
+
+            assertThrows(
+                    InvalidImagePayloadException.class,
+                    () -> wordService.generateBatch("batch-image-template.docx", dataList));
+        }
+
+        @Test
+        @DisplayName("批量生成中不支持的图片格式应抛出明确异常")
+        void shouldThrowExceptionForUnsupportedFormatInBatch() throws Exception {
+            Path templatePath = tempDir.resolve("batch-format-template.docx");
+            createSimpleWordTemplate(templatePath);
+
+            Map<String, Object> page1 = new HashMap<>();
+            page1.put("title", "Page 1");
+            Map<String, Object> imagePayload = new HashMap<>();
+            imagePayload.put("type", "image");
+            imagePayload.put("url", "https://example.com/logo.bmp");
+            imagePayload.put("format", "bmp");
+            imagePayload.put("width", 100);
+            imagePayload.put("height", 100);
+            page1.put("logo", imagePayload);
+
+            List<Map<String, Object>> dataList = List.of(page1);
+
+            InvalidImagePayloadException ex =
+                    assertThrows(
+                            InvalidImagePayloadException.class,
+                            () ->
+                                    wordService.generateBatch(
+                                            "batch-format-template.docx", dataList));
+            assertTrue(ex.getMessage().contains("not supported"));
         }
     }
 

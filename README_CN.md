@@ -65,6 +65,34 @@ Content-Type: application/json
 }
 ```
 
+#### 图片插入
+
+使用 `{{@imageKey}}` 模板语法插入图片。在 `data` 中传入图片载荷：
+
+```json
+{
+  "templateName": "report-template.docx",
+  "data": {
+    "title": "年度报告",
+    "logo": {
+      "type": "image",
+      "url": "https://example.com/logo.png"
+    }
+  },
+  "fileName": "年度报告"
+}
+```
+
+**图片载荷字段：**
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `type` | string | 是 | 必须为 `"image"` |
+| `url` | string | 是 | 图片 URL（仅支持 `http` 或 `https`） |
+| `format` | string | 否 | 图片格式：`png`、`jpg`、`jpeg`；未传时从 URL 后缀或响应 `Content-Type` 推断 |
+| `width` | integer | 否 | 图片宽度（像素，正整数），默认 `300` |
+| `height` | integer | 否 | 图片高度（像素，正整数），默认 `200` |
+
 ### 批量生成 Word 文档
 
 使用同一模板渲染多条数据，每条数据生成一页，合并为单个文档。
@@ -82,6 +110,35 @@ Content-Type: application/json
     {"name": "李四", "award": "二等奖"}
   ],
   "fileName": "批量证书"
+}
+```
+
+每条数据支持图片载荷：
+
+```json
+{
+  "templateName": "badge-template.docx",
+  "dataList": [
+    {
+      "name": "张三",
+      "badge": {
+        "type": "image",
+        "url": "https://example.com/gold-badge.png",
+        "width": 80,
+        "height": 80
+      }
+    },
+    {
+      "name": "李四",
+      "badge": {
+        "type": "image",
+        "url": "https://example.com/silver-badge.png",
+        "width": 80,
+        "height": 80
+      }
+    }
+  ],
+  "fileName": "徽章"
 }
 ```
 
@@ -192,7 +249,7 @@ docker buildx build --platform linux/amd64 -t doc-gen-service:amd64 --load .
 | 语法 | 说明 | 示例 |
 |------|------|------|
 | `{{variable}}` | 文本替换 | `{{title}}` |
-| `{{@image}}` | 图片插入 | `{{@logo}}` |
+| `{{@image}}` | 图片插入（URL 载荷） | `{{@logo}}` — 传入 `{"type":"image","url":"..."}` |
 | `{{#table}}` | 表格循环 | `{{#items}}` |
 | `{{?condition}}` | 条件判断 | `{{?showHeader}}` |
 

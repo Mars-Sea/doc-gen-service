@@ -55,10 +55,23 @@ public class WordGenRequest {
      *   <li>简单类型：String, Number, Boolean
      *   <li>集合类型：List, Set（用于表格行循环）
      *   <li>嵌套对象：Map（用于复杂结构）
+     *   <li>图片载荷：结构化对象（用于图片插入，模板使用 {@code {{@imageKey}}} 语法）
      * </ul>
+     *
+     * <h3>图片载荷示例：</h3>
+     *
+     * <pre>
+     * {
+     *   "type": "image",
+     *   "url": "https://example.com/logo.png"
+     * }
+     * </pre>
+     *
+     * <p>支持的图片格式：png、jpg、jpeg，可从 URL 后缀或响应 Content-Type 自动推断。URL 协议仅支持 http 和 https。 图片宽高默认 300 x
+     * 200，也可通过 width 和 height 指定正整数覆盖。
      */
     @Schema(
-            description = "模板渲染数据（键值对）",
+            description = "模板渲染数据（键值对），支持图片载荷（type: image）",
             example = "{\"title\": \"My Title\", \"date\": \"2023-01-01\"}")
     private Map<String, Object> data;
 

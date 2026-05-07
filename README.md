@@ -68,6 +68,34 @@ Content-Type: application/json
 }
 ```
 
+#### Image Insertion
+
+Use `{{@imageKey}}` template syntax for images. Pass image payloads in the `data` map:
+
+```json
+{
+  "templateName": "report-template.docx",
+  "data": {
+    "title": "Annual Report",
+    "logo": {
+      "type": "image",
+      "url": "https://example.com/logo.png"
+    }
+  },
+  "fileName": "annual_report"
+}
+```
+
+**Image payload fields:**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `type` | string | Yes | Must be `"image"` |
+| `url` | string | Yes | Image URL (`http` or `https` only) |
+| `format` | string | No | Image format: `png`, `jpg`, `jpeg`; inferred from URL suffix or response `Content-Type` when omitted |
+| `width` | integer | No | Image width in pixels (positive); defaults to `300` |
+| `height` | integer | No | Image height in pixels (positive); defaults to `200` |
+
 ### Batch Generate Word Document
 
 Generate a single document with multiple pages from multiple data records.
@@ -85,6 +113,35 @@ Content-Type: application/json
     {"name": "Bob", "award": "Silver"}
   ],
   "fileName": "certificates"
+}
+```
+
+Each item in `dataList` supports image payloads:
+
+```json
+{
+  "templateName": "badge-template.docx",
+  "dataList": [
+    {
+      "name": "Alice",
+      "badge": {
+        "type": "image",
+        "url": "https://example.com/gold-badge.png",
+        "width": 80,
+        "height": 80
+      }
+    },
+    {
+      "name": "Bob",
+      "badge": {
+        "type": "image",
+        "url": "https://example.com/silver-badge.png",
+        "width": 80,
+        "height": 80
+      }
+    }
+  ],
+  "fileName": "badges"
 }
 ```
 
@@ -195,7 +252,7 @@ docker buildx build --platform linux/amd64 -t doc-gen-service:amd64 --load .
 | Syntax | Description | Example |
 |--------|-------------|---------|
 | `{{variable}}` | Text replacement | `{{title}}` |
-| `{{@image}}` | Image insertion | `{{@logo}}` |
+| `{{@image}}` | Image insertion (URL payload) | `{{@logo}}` — pass `{"type":"image","url":"..."}` |
 | `{{#table}}` | Table loop | `{{#items}}` |
 | `{{?condition}}` | Conditional | `{{?showHeader}}` |
 

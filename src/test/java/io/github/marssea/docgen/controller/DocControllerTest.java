@@ -6,6 +6,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.github.marssea.docgen.exception.InvalidImagePayloadException;
 import io.github.marssea.docgen.exception.TemplateNotFoundException;
 import io.github.marssea.docgen.model.ExcelFillRequest;
 import io.github.marssea.docgen.model.ExcelGenRequest;
@@ -156,6 +157,66 @@ class DocControllerTest {
                                     .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isInternalServerError());
         }
+
+        @Test
+        @DisplayName("无效图片载荷应该返回 400")
+        void shouldReturn400ForInvalidImagePayload() throws Exception {
+            when(wordService.generateWord(anyString(), any()))
+                    .thenThrow(
+                            new InvalidImagePayloadException(
+                                    "logo",
+                                    "Image URL for 'logo' must use http or https protocol,"
+                                            + " got: ftp"));
+
+            WordGenRequest request = new WordGenRequest();
+            request.setTemplateName("test-template.docx");
+            Map<String, Object> data = new HashMap<>();
+            Map<String, Object> imagePayload = new HashMap<>();
+            imagePayload.put("type", "image");
+            imagePayload.put("url", "ftp://example.com/logo.png");
+            imagePayload.put("format", "png");
+            imagePayload.put("width", 120);
+            imagePayload.put("height", 60);
+            data.put("logo", imagePayload);
+            request.setData(data);
+
+            mockMvc.perform(
+                            post("/api/v1/doc/word")
+                                    .contentType(MediaType.APPLICATION_JSON)
+                                    .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.code").value("INVALID_IMAGE_PAYLOAD"));
+        }
+
+        @Test
+        @DisplayName("不支持的图片格式应该返回 400")
+        void shouldReturn400ForUnsupportedImageFormat() throws Exception {
+            when(wordService.generateWord(anyString(), any()))
+                    .thenThrow(
+                            new InvalidImagePayloadException(
+                                    "logo",
+                                    "Image format for 'logo' is not supported: gif."
+                                            + " Supported formats: png, jpg, jpeg"));
+
+            WordGenRequest request = new WordGenRequest();
+            request.setTemplateName("test-template.docx");
+            Map<String, Object> data = new HashMap<>();
+            Map<String, Object> imagePayload = new HashMap<>();
+            imagePayload.put("type", "image");
+            imagePayload.put("url", "https://example.com/logo.gif");
+            imagePayload.put("format", "gif");
+            imagePayload.put("width", 120);
+            imagePayload.put("height", 60);
+            data.put("logo", imagePayload);
+            request.setData(data);
+
+            mockMvc.perform(
+                            post("/api/v1/doc/word")
+                                    .contentType(MediaType.APPLICATION_JSON)
+                                    .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.code").value("INVALID_IMAGE_PAYLOAD"));
+        }
     }
 
     @Nested
@@ -243,6 +304,37 @@ class DocControllerTest {
                                             "Content-Disposition",
                                             org.hamcrest.Matchers.containsString(
                                                     "batch_report_test.docx")));
+        }
+
+        @Test
+        @DisplayName("批量请求中无效图片载荷应该返回 400")
+        void shouldReturn400ForInvalidImagePayloadInBatch() throws Exception {
+            when(wordService.generateBatch(anyString(), anyList()))
+                    .thenThrow(
+                            new InvalidImagePayloadException(
+                                    "logo",
+                                    "Image URL for 'logo' must use http or https protocol,"
+                                            + " got: ftp"));
+
+            WordBatchRequest request = new WordBatchRequest();
+            request.setTemplateName("batch-template.docx");
+            Map<String, Object> data1 = new HashMap<>();
+            data1.put("name", "Alice");
+            Map<String, Object> imagePayload = new HashMap<>();
+            imagePayload.put("type", "image");
+            imagePayload.put("url", "ftp://example.com/logo.png");
+            imagePayload.put("format", "png");
+            imagePayload.put("width", 120);
+            imagePayload.put("height", 60);
+            data1.put("logo", imagePayload);
+            request.setDataList(List.of(data1));
+
+            mockMvc.perform(
+                            post("/api/v1/doc/word/batch")
+                                    .contentType(MediaType.APPLICATION_JSON)
+                                    .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.code").value("INVALID_IMAGE_PAYLOAD"));
         }
     }
 
