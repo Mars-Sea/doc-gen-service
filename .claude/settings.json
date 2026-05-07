@@ -2,10 +2,6 @@
   "env": {
     "CLAUDE_BASH_MAINTAIN_PROJECT_WORKING_DIR": "1"
   },
-  "statusLine": {
-    "type": "command",
-    "command": "python3 .claude/hooks/statusline.py"
-  },
   "hooks": {
     "SessionStart": [
       {
@@ -13,7 +9,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 .claude/hooks/session-start.py",
+            "command": "python .claude/hooks/session-start.py",
             "timeout": 10
           }
         ]
@@ -23,7 +19,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 .claude/hooks/session-start.py",
+            "command": "python .claude/hooks/session-start.py",
             "timeout": 10
           }
         ]
@@ -33,7 +29,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 .claude/hooks/session-start.py",
+            "command": "python .claude/hooks/session-start.py",
             "timeout": 10
           }
         ]
@@ -45,7 +41,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 .claude/hooks/inject-subagent-context.py",
+            "command": "python .claude/hooks/inject-subagent-context.py",
             "timeout": 30
           }
         ]
@@ -55,7 +51,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 .claude/hooks/inject-subagent-context.py",
+            "command": "python .claude/hooks/inject-subagent-context.py",
             "timeout": 30
           }
         ]
@@ -66,24 +62,16 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 .claude/hooks/inject-workflow-state.py",
+            "command": "python .claude/hooks/inject-workflow-state.py",
             "timeout": 5
-          }
-        ]
-      }
-    ],
-    "PostToolUse": [
-      {
-        "matcher": "Write|Edit",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "python3 -c \"import sys,json; d=json.load(sys.stdin); print(d.get('tool_response',{}).get('filePath') or d.get('tool_input',{}).get('file_path',''), end='')\" | { read -r f; [[ \"$f\" == *.java ]] && mvn spotless:apply -q; true; } 2>/dev/null",
-            "timeout": 60
           }
         ]
       }
     ]
   },
-  "enabledPlugins": {}
+  "enabledPlugins": {},
+  "statusLine": {
+    "type": "command",
+    "command": "python .claude/hooks/statusline.py"
+  }
 }
