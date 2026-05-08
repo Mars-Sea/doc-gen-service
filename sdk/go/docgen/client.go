@@ -87,6 +87,38 @@ func (e *ErrorResponse) Error() string {
 	return fmt.Sprintf("[%s] %s (status: %d)", e.Code, e.Message, e.Status)
 }
 
+// Image 构造图片载荷，用于 Word 模板中的图片插入（{{@imageKey}} 语法）
+//
+// url: 图片地址（仅支持 http/https）
+// 返回的 map 可直接作为 data 中的值传入 GenerateWord 等方法
+//
+// 使用示例:
+//
+//	data := map[string]any{
+//	    "title": "报告",
+//	    "logo":  docgen.Image("https://example.com/logo.png"),
+//	}
+func Image(url string) map[string]any {
+	return map[string]any{
+		"type": "image",
+		"url":  url,
+	}
+}
+
+// ImageWithSize 构造带宽高的图片载荷
+//
+// url: 图片地址（仅支持 http/https）
+// width: 图片宽度（像素，正整数）
+// height: 图片高度（像素，正整数）
+func ImageWithSize(url string, width, height int) map[string]any {
+	return map[string]any{
+		"type":   "image",
+		"url":    url,
+		"width":  width,
+		"height": height,
+	}
+}
+
 // NewClient 创建文档生成服务客户端
 //
 // baseURL: 服务地址，如 http://localhost:8081

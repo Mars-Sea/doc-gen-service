@@ -21,6 +21,10 @@ A document generation microservice based on **Spring Boot**, using **poi-tl** fo
 
 ## 📝 Changelog
 
+### v0.0.5 (2026-05-08)
+- ✨ **New**: Word document generation now supports image insertion via URL payloads (`{{@imageKey}}` template syntax)
+- 📦 **Go SDK**: Added `Image()` helper function for constructing image payloads
+
 ### v0.0.4 (2026-01-08)
 - 🐛 **Fixed**: Batch Word generation now correctly adds page breaks between documents
 - ⚡ **Improved**: Using poi-tl native `NiceXWPFDocument.merge()` for better document format preservation
@@ -45,7 +49,7 @@ open http://localhost:8081/swagger-ui.html
 mvn clean package -DskipTests
 
 # Run
-java -jar target/doc-gen-service-0.0.4.jar
+java -jar target/doc-gen-service-0.0.5.jar
 ```
 
 ## 📖 API Reference
@@ -214,7 +218,7 @@ DELETE /api/v1/template/{templateName}
 ## 📦 Go SDK
 
 ```bash
-go get github.com/Mars-Sea/doc-gen-service/sdk/go@v0.0.4
+go get github.com/Mars-Sea/doc-gen-service/sdk/go@v0.0.5
 ```
 
 ```go

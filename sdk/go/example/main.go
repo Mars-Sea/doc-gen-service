@@ -19,7 +19,10 @@ func main() {
 	// 示例2: 带表格循环的文档
 	tableExample(client)
 
-	// 示例3: 自定义文件名（支持中文）
+	// 示例3: 带图片的文档
+	imageExample(client)
+
+	// 示例4: 自定义文件名（支持中文）
 	customFileNameExample(client)
 }
 
@@ -74,6 +77,32 @@ func tableExample(client *docgen.Client) {
 	}
 
 	fmt.Println("文档已保存: monthly_report.docx")
+}
+
+// imageExample 带图片插入的文档示例
+func imageExample(client *docgen.Client) {
+	fmt.Println("\n=== 示例3: 图片插入 ===")
+
+	data := map[string]any{
+		"title": "带图片的报告",
+		"date":  "2025-01-01",
+		"logo":  docgen.Image("https://example.com/logo.png"),
+		"chart": docgen.ImageWithSize("https://example.com/chart.png", 600, 400),
+	}
+
+	doc, err := client.GenerateWord("image-template.docx", data, "image_doc")
+	if err != nil {
+		log.Printf("生成文档失败: %v\n", err)
+		return
+	}
+
+	err = os.WriteFile("image_doc.docx", doc, 0644)
+	if err != nil {
+		log.Printf("保存文件失败: %v\n", err)
+		return
+	}
+
+	fmt.Println("文档已保存: image_doc.docx")
 }
 
 // customFileNameExample 自定义中文文件名示例

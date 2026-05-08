@@ -10,7 +10,7 @@ Go client library for Doc-Gen-Service API.
 ## Installation
 
 ```bash
-go get github.com/Mars-Sea/doc-gen-service/sdk/go@v0.0.3
+go get github.com/Mars-Sea/doc-gen-service/sdk/go@v0.0.5
 ```
 
 ## Quick Start
@@ -68,6 +68,13 @@ func main() {
 | `BatchGenerateWord(template, dataList, fileName)` | `[]byte, error` | Generate multi-page Word from list |
 | `SaveBatchWord(template, dataList, outputPath)` | `error` | Batch generate and save |
 
+### Image Payload Helpers
+
+| Function | Returns | Description |
+|----------|---------|-------------|
+| `Image(url)` | `map[string]any` | Create image payload with default size (300x200) |
+| `ImageWithSize(url, width, height)` | `map[string]any` | Create image payload with custom size |
+
 ### Excel Document Generation
 
 | Method | Returns | Description |
@@ -88,6 +95,18 @@ func main() {
 | `DeleteTemplate(templateName)` | `*DeleteResponse, error` | Delete template |
 
 ## Examples
+
+### Insert Image in Word
+
+```go
+data := map[string]any{
+    "title": "Annual Report",
+    "logo":  docgen.Image("https://example.com/logo.png"),
+    "chart": docgen.ImageWithSize("https://example.com/chart.png", 600, 400),
+}
+doc, _ := client.GenerateWord("report-template.docx", data, "report")
+os.WriteFile("report.docx", doc, 0644)
+```
 
 ### Batch Generate Word
 
@@ -136,7 +155,7 @@ if err != nil {
 ## 安装
 
 ```bash
-go get github.com/Mars-Sea/doc-gen-service/sdk/go@v0.0.4
+go get github.com/Mars-Sea/doc-gen-service/sdk/go@v0.0.5
 ```
 
 ## 快速开始
@@ -147,6 +166,13 @@ client := docgen.NewClient("http://localhost:8081")
 // 生成单个 Word 文档
 data := map[string]any{"title": "报告", "date": "2025-01-01"}
 doc, _ := client.GenerateWord("template.docx", data, "报告")
+
+// 插入图片（使用 Image 辅助函数）
+imageData := map[string]any{
+    "title": "报告",
+    "logo":  docgen.Image("https://example.com/logo.png"),
+}
+imgDoc, _ := client.GenerateWord("template.docx", imageData, "带图片的报告")
 
 // 批量生成 Word 文档
 dataList := []map[string]any{
@@ -169,6 +195,7 @@ excelDoc, _ := client.FillExcelTemplate("template.xlsx", data, listData, "output
 | `Health()` / `IsHealthy()` | 健康检查 |
 | `GenerateWord()` / `SaveWord()` | 生成 Word 文档 |
 | `BatchGenerateWord()` / `SaveBatchWord()` | 批量生成 Word 文档 |
+| `Image()` / `ImageWithSize()` | 图片载荷构造辅助函数 |
 | `GenerateExcel()` / `SaveExcel()` | 动态生成 Excel |
 | `FillExcelTemplate()` / `SaveFilledExcel()` | 填充 Excel 模板 |
 | `UploadTemplate()` / `ListTemplates()` / `DeleteTemplate()` | 模板管理 |

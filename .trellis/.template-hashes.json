@@ -1,7 +1,7 @@
 {
   "__version": 2,
   "hashes": {
-    "AGENTS.md": "e00bbed329e0fc9a4931d3fb8a3c7b47c7311a7b5a39f38dcfb44f2c63fbd390",
+    "AGENTS.md": "73e2148c9af7fcc61a0c30b129a04e7484f526ee0a0fe06aed76c834a8695393",
     ".trellis/config.yaml": "c3c4af7d82c09a1638f63c1f560119507735b060a4780ef7e6d0cdef447c215d",
     ".trellis/scripts/add_session.py": "cb5fadbca9e4af389e44e3d536797a8a01a16dac325742582a91fdaa19ebd3cb",
     ".trellis/scripts/common/active_task.py": "6c88ed40ef7289bca0f6d2ecba0f8b8aef46cd58788080fbeeea88de138a431f",
@@ -36,7 +36,7 @@
     ".claude/commands/trellis/continue.md": "e609e940236f33a9b05a15173606cc3f72285994904d6723382c490d94994aba",
     ".claude/commands/trellis/finish-work.md": "f11f661cff6d5d26dccb5e9574c3d2c7873a9dfaed7962d471ff5ea2fd48d691",
     ".claude/hooks/inject-subagent-context.py": "d8d69631b43ef469030ff78410c2e082f721f79b7d6eaa754b7a1a1c05810242",
-    ".claude/hooks/inject-workflow-state.py": "0684fb17d0d42b36d1549e9bc0a905d4c06f714e2b2008d74d9ab0d2c1c2b626",
+    ".claude/hooks/inject-workflow-state.py": "b02b144c5f03f3025d7f23dc550584a34f9052fea8bceff5ba14929e6ba4e2f3",
     ".claude/hooks/session-start.py": "c43314d810937c4fafb65af7128fd01f01c367c4378aef6756a5237bed78d585",
     ".claude/settings.json": "2803824f55b1a5665514e9a54260cf4cf1a28b1020faff2a9f9b7f323702be75",
     ".claude/skills/build-docker/SKILL.md": "344e7af6afeaad929107b0746a1728cd002dbbf73731e50029b818c72d13c616",

@@ -21,6 +21,10 @@
 
 ## 📝 更新日志
 
+### v0.0.5 (2026-05-08)
+- ✨ **新增**: Word 文档生成支持通过 URL 载荷插入图片（`{{@imageKey}}` 模板语法）
+- 📦 **Go SDK**: 新增 `Image()` 辅助函数，便捷构造图片载荷
+
 ### v0.0.4 (2026-01-08)
 - 🐛 **修复**: 批量生成 Word 文档时正确添加分页符
 - ⚡ **优化**: 使用 poi-tl 原生 `NiceXWPFDocument.merge()` 方法，更好地保留文档格式
@@ -45,7 +49,7 @@ open http://localhost:8081/swagger-ui.html
 mvn clean package -DskipTests
 
 # 运行
-java -jar target/doc-gen-service-0.0.4.jar
+java -jar target/doc-gen-service-0.0.5.jar
 ```
 
 ## 📖 API 接口
@@ -211,7 +215,7 @@ DELETE /api/v1/template/{templateName}
 ## 📦 Go SDK
 
 ```bash
-go get github.com/Mars-Sea/doc-gen-service/sdk/go@v0.0.4
+go get github.com/Mars-Sea/doc-gen-service/sdk/go@v0.0.5
 ```
 
 ```go

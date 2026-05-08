@@ -13,7 +13,7 @@ Java 17 Spring Boot 3.2.1 microservice for document generation (Word/Excel). Use
 - **Format:** `mvn spotless:apply`
 - **Check format:** `mvn spotless:check`
 - **Skip tests:** `mvn clean package -DskipTests` (used for Docker builds)
-- **Run locally:** `java -jar target/doc-gen-service-0.0.4.jar`
+- **Run locally:** `java -jar target/doc-gen-service-0.0.5.jar`
 - **Run with Docker:** `mvn clean package -DskipTests && docker-compose up -d --build`
 
 ## Tech Stack
