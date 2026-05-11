@@ -71,3 +71,36 @@ Implemented URL image payload support for Word generation, including single and 
 ### Next Steps
 
 - None - task complete
+
+
+## Session 3: Spec review and fix
+
+**Date**: 2026-05-11
+**Task**: Spec review and fix
+**Branch**: `main`
+
+### Summary
+
+Reviewed all backend spec files against actual codebase. Fixed 5 issues: filled database-guidelines (N/A), directory-structure, logging-guidelines; updated error-handling with InvalidImagePayloadException; updated index status column. Task 05-08-0-0-5-word confirmed complete and archived.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `c575f5c` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
