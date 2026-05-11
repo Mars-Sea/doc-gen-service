@@ -6,46 +6,47 @@
 
 ## Overview
 
-<!--
-Document your project's logging conventions here.
-
-Questions to answer:
-- What logging library do you use?
-- What are the log levels and when to use each?
-- What should be logged?
-- What should NOT be logged (PII, secrets)?
--->
-
-(To be filled by the team)
+Uses **Lombok `@Slf4j`** annotation for logging. No `System.out` / `System.err` usage allowed.
 
 ---
 
 ## Log Levels
 
-<!-- When to use each level: debug, info, warn, error -->
-
-(To be filled by the team)
+| Level | When to Use | Example |
+|-------|-------------|---------|
+| `debug` | Internal details useful during development | Template path resolved, data map keys |
+| `info` | Normal operations worth recording | Document generated successfully |
+| `warn` | Client errors (4xx) — bad input, missing resources | Template not found, invalid image payload |
+| `error` | Server errors (5xx) — unexpected failures | IO error, unhandled exception (include stack trace) |
 
 ---
 
 ## Structured Logging
 
-<!-- Log format, required fields -->
+Use SLF4J parameterized messages (not string concatenation):
 
-(To be filled by the team)
+```java
+// ✅ Correct
+log.warn("Template not found: {}", templateName);
+log.error("IO error occurred: {}", e.getMessage(), e);  // last arg = stack trace
+
+// ❌ Wrong
+log.warn("Template not found: " + templateName);  // string concat, always evaluates
+System.out.println("Debug: " + result);            // forbidden
+```
 
 ---
 
 ## What to Log
 
-<!-- Important events to log -->
-
-(To be filled by the team)
+- **warn**: All 4xx responses — template not found, validation failures, illegal arguments, invalid image payloads
+- **error**: All 5xx responses — IO errors, unhandled exceptions (always include the exception as last argument for stack trace)
+- **debug**: Internal state useful during development (template path resolution, data transformations)
 
 ---
 
 ## What NOT to Log
 
-<!-- Sensitive data, PII, secrets -->
-
-(To be filled by the team)
+- **PII / secrets** — never log API keys, passwords, tokens
+- **Full request bodies** at `info` level — may contain sensitive data
+- **Sensitive file contents** — template content, generated document bytes

@@ -12,9 +12,10 @@ Errors are handled via `GlobalExceptionHandler` (`@RestControllerAdvice`), which
 
 ## Error Types
 
-Custom exception:
+Custom exceptions:
 
 - **`TemplateNotFoundException`** — template file referenced in the request does not exist on disk.
+- **`InvalidImagePayloadException`** — image payload validation failed (bad URL protocol, unsupported format, missing fields, download failure).
 
 Standard exceptions used throughout:
 
@@ -42,6 +43,7 @@ if (!templateFile.exists()) {
 | Exception | HTTP Status | Error Code |
 |-----------|-------------|------------|
 | `TemplateNotFoundException` | 422 Unprocessable Entity | `TEMPLATE_NOT_FOUND` |
+| `InvalidImagePayloadException` | 400 Bad Request | `INVALID_IMAGE_PAYLOAD` |
 | `MethodArgumentNotValidException` | 400 Bad Request | `VALIDATION_ERROR` |
 | `IllegalArgumentException` | 400 Bad Request | `INVALID_ARGUMENT` |
 | `IOException` | 500 Internal Server Error | `IO_ERROR` |

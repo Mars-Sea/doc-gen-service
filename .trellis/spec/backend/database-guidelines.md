@@ -4,48 +4,8 @@
 
 ---
 
-## Overview
+## Status: N/A
 
-<!--
-Document your project's database conventions here.
+This project is a **template-based document generation service** (poi-tl + EasyExcel). It has no database — all data comes from HTTP request bodies and template files on disk.
 
-Questions to answer:
-- What ORM/query library do you use?
-- How are migrations managed?
-- What are the naming conventions for tables/columns?
-- How do you handle transactions?
--->
-
-(To be filled by the team)
-
----
-
-## Query Patterns
-
-<!-- How should queries be written? Batch operations? -->
-
-(To be filled by the team)
-
----
-
-## Migrations
-
-<!-- How to create and run migrations -->
-
-(To be filled by the team)
-
----
-
-## Naming Conventions
-
-<!-- Table names, column names, index names -->
-
-(To be filled by the team)
-
----
-
-## Common Mistakes
-
-<!-- Database-related mistakes your team has made -->
-
-(To be filled by the team)
+No database guidelines are needed for this project.
