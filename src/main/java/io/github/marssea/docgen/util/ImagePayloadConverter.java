@@ -87,23 +87,13 @@ public class ImagePayloadConverter {
     }
 
     /**
-     * 将图片载荷转换为 poi-tl 的 PictureRenderData
-     *
-     * <p>执行以下校验：
-     *
-     * <ul>
-     *   <li>URL 协议必须为 http 或 https
-     *   <li>图片格式必须为 png、jpg 或 jpeg
-     *   <li>宽度和高度必须为正整数，未传时默认 300 x 200
-     *   <li>图片下载成功且大小不超过 10MB
-     * </ul>
+     * 将图片载荷转换为通用下载结果
      *
      * @param fieldName 数据 Map 中的字段名（用于错误消息）
      * @param payload 图片载荷 Map
-     * @return poi-tl 图片渲染数据
-     * @throws InvalidImagePayloadException 当载荷校验失败或图片下载失败时抛出
+     * @return 下载后的图片数据
      */
-    public PictureRenderData convert(String fieldName, Map<String, Object> payload) {
+    public ConvertedImage convertToImage(String fieldName, Map<String, Object> payload) {
         validateRequiredFields(fieldName, payload);
 
         String url = payload.get(FIELD_URL).toString();
@@ -119,7 +109,18 @@ public class ImagePayloadConverter {
         validateExplicitFormat(fieldName, explicitFormat);
         validateInferredUrlFormat(fieldName, url, explicitFormat);
 
-        return downloadAndConvert(fieldName, url, explicitFormat, width, height);
+        DownloadedImage image = downloadImage(fieldName, url);
+        String format = resolveFormat(fieldName, url, explicitFormat, image.contentType());
+        return new ConvertedImage(image.bytes(), format, width, height);
+    }
+
+    /** 将图片载荷转换为 poi-tl 的 PictureRenderData */
+    public PictureRenderData convert(String fieldName, Map<String, Object> payload) {
+        ConvertedImage image = convertToImage(fieldName, payload);
+        PictureType pictureType = mapFormatToPictureType(fieldName, image.format());
+        return Pictures.ofBytes(image.bytes(), pictureType)
+                .size(image.width(), image.height())
+                .create();
     }
 
     /** 校验必填字段 */
@@ -230,21 +231,6 @@ public class ImagePayloadConverter {
                             + "' must be a valid integer, got: "
                             + value);
         }
-    }
-
-    /**
-     * 下载图片并转换为 PictureRenderData
-     *
-     * <p>使用自定义 HTTP 连接（带超时设置），因为 poi-tl 的 {@code Pictures.ofUrl()} 不支持自定义超时。
-     */
-    private PictureRenderData downloadAndConvert(
-            String fieldName, String url, String explicitFormat, int width, int height) {
-        DownloadedImage image = downloadImage(fieldName, url);
-        String format = resolveFormat(fieldName, url, explicitFormat, image.contentType());
-
-        PictureType pictureType = mapFormatToPictureType(fieldName, format);
-
-        return Pictures.ofBytes(image.bytes(), pictureType).size(width, height).create();
     }
 
     /** 下载图片，带超时设置 */
@@ -362,6 +348,9 @@ public class ImagePayloadConverter {
                     "Unsupported image format: " + format + ". Supported: png, jpg, jpeg");
         };
     }
+
+    /** 转换后的图片数据 */
+    public record ConvertedImage(byte[] bytes, String format, int width, int height) {}
 
     private record DownloadedImage(byte[] bytes, String contentType) {}
 }

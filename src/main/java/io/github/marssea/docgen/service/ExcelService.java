@@ -2,11 +2,16 @@ package io.github.marssea.docgen.service;
 
 import com.alibaba.excel.EasyExcel;
 import com.alibaba.excel.ExcelWriter;
+import com.alibaba.excel.enums.CellDataTypeEnum;
+import com.alibaba.excel.metadata.data.ImageData;
+import com.alibaba.excel.metadata.data.WriteCellData;
 import com.alibaba.excel.write.metadata.WriteSheet;
 import com.alibaba.excel.write.metadata.fill.FillConfig;
 import com.alibaba.excel.write.style.column.LongestMatchColumnWidthStyleStrategy;
 import io.github.marssea.docgen.config.DocGenProperties;
+import io.github.marssea.docgen.exception.InvalidImagePayloadException;
 import io.github.marssea.docgen.exception.TemplateNotFoundException;
+import io.github.marssea.docgen.util.ImagePayloadConverter;
 import io.github.marssea.docgen.util.TemplateValidationUtil;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -14,6 +19,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
@@ -44,6 +50,7 @@ import org.springframework.stereotype.Service;
 public class ExcelService {
 
     private final DocGenProperties properties;
+    private final ImagePayloadConverter imagePayloadConverter;
 
     /**
      * 根据表头和数据生成 Excel 文档
@@ -156,7 +163,7 @@ public class ExcelService {
 
                 // 再填充单值数据
                 if (data != null && !data.isEmpty()) {
-                    excelWriter.fill(data, writeSheet);
+                    excelWriter.fill(preprocessImagePayloads(data), writeSheet);
                 }
             }
 
@@ -168,6 +175,54 @@ public class ExcelService {
             log.error("Failed to fill Excel template", e);
             throw new RuntimeException("Failed to fill Excel template: " + e.getMessage(), e);
         }
+    }
+
+    /** 预处理 Excel 模板图片载荷 */
+    private Map<String, Object> preprocessImagePayloads(Map<String, Object> data) {
+        if (data == null) {
+            return null;
+        }
+
+        Map<String, Object> processed = new HashMap<>();
+        data.forEach(
+                (key, value) -> {
+                    if (imagePayloadConverter.isImagePayload(value)) {
+                        @SuppressWarnings("unchecked")
+                        Map<String, Object> payload = (Map<String, Object>) value;
+                        log.debug("Converting Excel image payload for field: {}", key);
+                        processed.put(key, toExcelImageCell(key, payload));
+                    } else {
+                        processed.put(key, value);
+                    }
+                });
+        return processed;
+    }
+
+    /** 将通用图片载荷转换为 EasyExcel 图片单元格数据 */
+    private WriteCellData<Void> toExcelImageCell(String fieldName, Map<String, Object> payload) {
+        ImagePayloadConverter.ConvertedImage image =
+                imagePayloadConverter.convertToImage(fieldName, payload);
+        WriteCellData<Void> cellData = new WriteCellData<>(CellDataTypeEnum.EMPTY);
+        ImageData imageData = new ImageData();
+        imageData.setImage(image.bytes());
+        imageData.setImageType(toExcelImageType(fieldName, image.format()));
+        imageData.setRelativeLastRowIndex(0);
+        imageData.setRelativeLastColumnIndex(0);
+        imageData.setRight(Math.max(0, image.width()));
+        imageData.setBottom(Math.max(0, image.height()));
+        cellData.setImageDataList(List.of(imageData));
+        return cellData;
+    }
+
+    /** 将图片格式映射为 EasyExcel 图片类型 */
+    private ImageData.ImageType toExcelImageType(String fieldName, String format) {
+        return switch (format) {
+            case "png" -> ImageData.ImageType.PICTURE_TYPE_PNG;
+            case "jpg", "jpeg" -> ImageData.ImageType.PICTURE_TYPE_JPEG;
+            default -> throw new InvalidImagePayloadException(
+                    fieldName,
+                    "Unsupported image format: " + format + ". Supported: png, jpg, jpeg");
+        };
     }
 
     /**

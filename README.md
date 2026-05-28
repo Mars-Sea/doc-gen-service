@@ -170,7 +170,7 @@ Content-Type: application/json
 
 ### Fill Excel Template
 
-Fill Excel templates with variables `{variable}` and list data `{.field}`.
+Fill Excel templates with variables `{variable}`, image variables, and list data `{.field}`.
 
 ```http
 POST /api/v1/doc/excel/fill
@@ -180,7 +180,11 @@ Content-Type: application/json
 ```json
 {
   "templateName": "report-template.xlsx",
-  "data": {"title": "Sales Report", "date": "2025-01-01"},
+  "data": {
+    "title": "Sales Report",
+    "date": "2025-01-01",
+    "logo": {"type": "image", "url": "https://example.com/logo.png", "format": "png", "width": 120, "height": 60}
+  },
   "listData": {
     "items": [
       {"no": 1, "name": "Product A", "price": 100},
@@ -264,7 +268,7 @@ docker buildx build --platform linux/amd64 -t doc-gen-service:amd64 --load .
 
 | Syntax | Description | Example |
 |--------|-------------|---------|
-| `{variable}` | Single value | `{title}` |
+| `{variable}` | Single value or image payload in template fill | `{title}`, `{logo}` |
 | `{.field}` | List row loop | `{.name}`, `{.price}` |
 
 ## 🛠️ Tech Stack

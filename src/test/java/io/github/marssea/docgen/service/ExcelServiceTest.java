@@ -5,13 +5,17 @@ import static org.junit.jupiter.api.Assertions.*;
 import com.alibaba.excel.EasyExcel;
 import com.alibaba.excel.ExcelWriter;
 import com.alibaba.excel.write.metadata.WriteSheet;
+import com.sun.net.httpserver.HttpServer;
 import io.github.marssea.docgen.config.DocGenProperties;
 import io.github.marssea.docgen.exception.TemplateNotFoundException;
+import io.github.marssea.docgen.util.ImagePayloadConverter;
 import java.io.ByteArrayInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.net.InetSocketAddress;
 import java.nio.file.Path;
 import java.util.*;
+import org.apache.poi.xssf.usermodel.XSSFPictureData;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.io.TempDir;
@@ -20,16 +24,23 @@ import org.junit.jupiter.api.io.TempDir;
 @DisplayName("ExcelService 测试")
 class ExcelServiceTest {
 
+    private static final byte[] TEST_PNG_BYTES =
+            Base64.getDecoder()
+                    .decode(
+                            "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==");
+
     @TempDir Path tempDir;
 
     private ExcelService excelService;
     private DocGenProperties properties;
+    private ImagePayloadConverter imagePayloadConverter;
 
     @BeforeEach
     void setUp() {
         properties = new DocGenProperties();
         properties.setTemplatePath(tempDir.toString());
-        excelService = new ExcelService(properties);
+        imagePayloadConverter = new ImagePayloadConverter();
+        excelService = new ExcelService(properties, imagePayloadConverter);
     }
 
     @Nested
@@ -162,6 +173,41 @@ class ExcelServiceTest {
         }
 
         @Test
+        @DisplayName("模板填充应支持图片载荷")
+        void shouldFillExcelTemplateWithImagePayload() throws Exception {
+            Path templatePath = tempDir.resolve("image-template.xlsx");
+            createImageExcelTemplate(templatePath);
+
+            HttpServer server = startImageServer();
+            try {
+                Map<String, Object> imagePayload = new HashMap<>();
+                imagePayload.put("type", "image");
+                imagePayload.put(
+                        "url", "http://localhost:" + server.getAddress().getPort() + "/logo.png");
+                imagePayload.put("format", "png");
+                imagePayload.put("width", 80);
+                imagePayload.put("height", 40);
+
+                Map<String, Object> data = new HashMap<>();
+                data.put("title", "Image Report");
+                data.put("logo", imagePayload);
+
+                byte[] result = excelService.fillTemplate("image-template.xlsx", data, null);
+
+                try (XSSFWorkbook workbook = new XSSFWorkbook(new ByteArrayInputStream(result))) {
+                    assertEquals(
+                            "Image Report",
+                            workbook.getSheetAt(0).getRow(0).getCell(1).getStringCellValue());
+                    List<XSSFPictureData> pictures = workbook.getAllPictures();
+                    assertEquals(1, pictures.size());
+                    assertArrayEquals(TEST_PNG_BYTES, pictures.get(0).getData());
+                }
+            } finally {
+                server.stop(0);
+            }
+        }
+
+        @Test
         @DisplayName("data 和 listData 都为 null 时应该返回原模板")
         void shouldReturnOriginalTemplateWhenDataIsNull() throws Exception {
             Path templatePath = tempDir.resolve("empty-data.xlsx");
@@ -188,5 +234,35 @@ class ExcelServiceTest {
 
             excelWriter.write(data, writeSheet);
         }
+    }
+
+    /** 创建包含图片占位符的 Excel 模板用于测试 */
+    private void createImageExcelTemplate(Path path) throws IOException {
+        try (FileOutputStream out = new FileOutputStream(path.toFile());
+                ExcelWriter excelWriter = EasyExcel.write(out).build()) {
+
+            WriteSheet writeSheet = EasyExcel.writerSheet("Sheet1").build();
+
+            List<List<Object>> data = new ArrayList<>();
+            data.add(Arrays.asList("Title", "{title}"));
+            data.add(Arrays.asList("Logo", "{logo}"));
+
+            excelWriter.write(data, writeSheet);
+        }
+    }
+
+    /** 启动测试图片 HTTP 服务 */
+    private HttpServer startImageServer() throws IOException {
+        HttpServer server = HttpServer.create(new InetSocketAddress(0), 0);
+        server.createContext(
+                "/logo.png",
+                exchange -> {
+                    exchange.getResponseHeaders().add("Content-Type", "image/png");
+                    exchange.sendResponseHeaders(200, TEST_PNG_BYTES.length);
+                    exchange.getResponseBody().write(TEST_PNG_BYTES);
+                    exchange.close();
+                });
+        server.start();
+        return server;
     }
 }

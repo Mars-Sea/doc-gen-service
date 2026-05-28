@@ -3,6 +3,7 @@ package io.github.marssea.docgen.service;
 import com.deepoove.poi.XWPFTemplate;
 import com.deepoove.poi.config.Configure;
 import com.deepoove.poi.plugin.table.LoopRowTableRenderPolicy;
+import com.deepoove.poi.render.compute.SpELRenderDataCompute;
 import com.deepoove.poi.xwpf.NiceXWPFDocument;
 import io.github.marssea.docgen.config.DocGenProperties;
 import io.github.marssea.docgen.exception.TemplateNotFoundException;
@@ -199,7 +200,14 @@ public class WordService {
      */
     private Configure buildRenderConfig(Map<String, Object> data) {
         LoopRowTableRenderPolicy policy = new LoopRowTableRenderPolicy();
-        var builder = Configure.builder().useSpringEL(); // 使用 SpEL 表达式，null 值会被渲染为空字符串
+        var builder =
+                Configure.builder()
+                        .useSpringEL()
+                        .setRenderDataComputeFactory(
+                                model -> {
+                                    var compute = new SpELRenderDataCompute(model, true);
+                                    return el -> compute.compute(el.trim());
+                                });
 
         if (data != null) {
             data.forEach(

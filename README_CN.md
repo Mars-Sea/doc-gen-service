@@ -167,7 +167,7 @@ Content-Type: application/json
 
 ### 填充 Excel 模板
 
-支持单值变量 `{variable}` 和列表循环 `{.field}` 语法。
+支持单值变量 `{variable}`、图片变量和列表循环 `{.field}` 语法。
 
 ```http
 POST /api/v1/doc/excel/fill
@@ -177,7 +177,11 @@ Content-Type: application/json
 ```json
 {
   "templateName": "report-template.xlsx",
-  "data": {"title": "销售报告", "date": "2025-01-01"},
+  "data": {
+    "title": "销售报告",
+    "date": "2025-01-01",
+    "logo": {"type": "image", "url": "https://example.com/logo.png", "format": "png", "width": 120, "height": 60}
+  },
   "listData": {
     "items": [
       {"no": 1, "name": "商品A", "price": 100},
@@ -261,7 +265,7 @@ docker buildx build --platform linux/amd64 -t doc-gen-service:amd64 --load .
 
 | 语法 | 说明 | 示例 |
 |------|------|------|
-| `{variable}` | 单值替换 | `{title}` |
+| `{variable}` | 单值替换或模板填充图片载荷 | `{title}`, `{logo}` |
 | `{.field}` | 列表行循环 | `{.name}`, `{.price}` |
 
 ## 🛠️ 技术栈

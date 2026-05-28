@@ -90,6 +90,24 @@ class WordServiceTest {
         }
 
         @Test
+        @DisplayName("占位符首尾有空格时应正常渲染")
+        void shouldGenerateWordDocumentWithSpacedPlaceholders() throws Exception {
+            Path templatePath = tempDir.resolve("spaced-template.docx");
+            createSpacedPlaceholderWordTemplate(templatePath);
+
+            Map<String, Object> data = new HashMap<>();
+            data.put("name", "Alice");
+            data.put("age", 18);
+
+            byte[] result = wordService.generateWord("spaced-template.docx", data);
+
+            try (XWPFDocument doc = new XWPFDocument(new ByteArrayInputStream(result))) {
+                assertEquals("Name: Alice", doc.getParagraphs().get(0).getText());
+                assertEquals("Age: 18", doc.getParagraphs().get(1).getText());
+            }
+        }
+
+        @Test
         @DisplayName("data 为空 Map 时应该正常生成文档")
         void shouldGenerateWordDocumentWithEmptyData() throws Exception {
             Path templatePath = tempDir.resolve("simple.docx");
@@ -239,6 +257,30 @@ class WordServiceTest {
         }
 
         @Test
+        @DisplayName("批量生成应支持首尾有空格的占位符")
+        void shouldGenerateBatchDocumentWithSpacedPlaceholders() throws Exception {
+            Path templatePath = tempDir.resolve("batch-spaced-template.docx");
+            createSpacedPlaceholderWordTemplate(templatePath);
+
+            List<Map<String, Object>> dataList =
+                    List.of(Map.of("name", "Alice", "age", 18), Map.of("name", "Bob", "age", 20));
+
+            byte[] result = wordService.generateBatch("batch-spaced-template.docx", dataList);
+
+            try (XWPFDocument doc = new XWPFDocument(new ByteArrayInputStream(result))) {
+                String text =
+                        doc.getParagraphs().stream()
+                                .map(XWPFParagraph::getText)
+                                .toList()
+                                .toString();
+                assertTrue(text.contains("Name: Alice"));
+                assertTrue(text.contains("Age: 18"));
+                assertTrue(text.contains("Name: Bob"));
+                assertTrue(text.contains("Age: 20"));
+            }
+        }
+
+        @Test
         @DisplayName("空数据列表应该抛出 IllegalArgumentException")
         void shouldThrowExceptionForEmptyDataList() throws Exception {
             Path templatePath = tempDir.resolve("empty-batch.docx");
@@ -318,6 +360,23 @@ class WordServiceTest {
             XWPFParagraph contentParagraph = document.createParagraph();
             XWPFRun contentRun = contentParagraph.createRun();
             contentRun.setText("Content: {{content}}");
+
+            try (FileOutputStream out = new FileOutputStream(path.toFile())) {
+                document.write(out);
+            }
+        }
+    }
+
+    /** 创建包含首尾空格占位符的 Word 模板用于测试 */
+    private void createSpacedPlaceholderWordTemplate(Path path) throws IOException {
+        try (XWPFDocument document = new XWPFDocument()) {
+            XWPFParagraph nameParagraph = document.createParagraph();
+            XWPFRun nameRun = nameParagraph.createRun();
+            nameRun.setText("Name: {{ name }}");
+
+            XWPFParagraph ageParagraph = document.createParagraph();
+            XWPFRun ageRun = ageParagraph.createRun();
+            ageRun.setText("Age: {{  age  }}");
 
             try (FileOutputStream out = new FileOutputStream(path.toFile())) {
                 document.write(out);
