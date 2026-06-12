@@ -6,9 +6,11 @@ import com.deepoove.poi.plugin.table.LoopRowTableRenderPolicy;
 import com.deepoove.poi.render.compute.SpELRenderDataCompute;
 import com.deepoove.poi.xwpf.NiceXWPFDocument;
 import io.github.marssea.docgen.config.DocGenProperties;
+import io.github.marssea.docgen.exception.InvalidImagePayloadException;
 import io.github.marssea.docgen.exception.TemplateNotFoundException;
 import io.github.marssea.docgen.util.ImagePayloadConverter;
 import io.github.marssea.docgen.util.TemplateValidationUtil;
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
@@ -20,6 +22,7 @@ import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.xwpf.usermodel.BreakType;
+import org.apache.poi.xwpf.usermodel.XWPFParagraph;
 import org.springframework.stereotype.Service;
 
 /**
@@ -98,10 +101,13 @@ public class WordService {
     /**
      * 批量生成 Word 文档
      *
-     * <p>使用同一模板渲染多条数据，每条数据生成一页，合并为单个文档。 使用 poi-tl 原生的 NiceXWPFDocument.merge() 方法，确保文档格式和布局正确保留。
+     * <p>使用同一模板渲染多条数据，每条数据生成一份完整模板实例，合并为单个文档。
+     *
+     * <p>合并策略：以第一个渲染实例作为主文档，后续实例通过 poi-tl 的 {@code NiceXWPFDocument.merge()} 逐个合并。 poi-tl 的 merge
+     * 机制会正确处理 body XML 拼接、关系 ID 重映射（图片、超链接、样式等）和 sectPr 剥离， 从而支持多页模板的完整实例合并。模板实例之间插入分页符。
      *
      * @param templateName 模板文件名（需包含扩展名，如 template.docx）
-     * @param dataList 数据列表，每条数据生成一页
+     * @param dataList 数据列表，每条数据生成一份完整模板实例
      * @return 生成的文档二进制流
      * @throws TemplateNotFoundException 当指定的模板文件不存在时抛出
      * @throws IOException 文件读取或写入异常
@@ -131,60 +137,69 @@ public class WordService {
                 templatePath,
                 dataList.size());
 
-        // 使用 poi-tl 的 NiceXWPFDocument 进行文档合并
-        NiceXWPFDocument mainDoc = null;
-
         try {
-            for (int i = 0; i < dataList.size(); i++) {
+            // 渲染第一个模板实例作为主文档
+            NiceXWPFDocument mainDoc = renderTemplateInstance(templateFile, dataList.get(0));
+            log.debug("Rendered template instance 1 of {}", dataList.size());
+
+            // 逐个合并后续实例
+            for (int i = 1; i < dataList.size(); i++) {
                 Map<String, Object> data = dataList.get(i);
+                NiceXWPFDocument nextDoc = renderTemplateInstance(templateFile, data);
+                log.debug("Rendered template instance {} of {}", i + 1, dataList.size());
 
-                // 预处理图片载荷：将结构化图片对象转换为 PictureRenderData
-                Map<String, Object> processedData = preprocessImagePayloads(data);
+                // 在主文档末尾创建一个分页符段落作为合并插入点
+                XWPFParagraph pageBreakPara = mainDoc.createParagraph();
+                pageBreakPara.createRun().addBreak(BreakType.PAGE);
 
-                // 构建渲染配置
-                Configure config = buildRenderConfig(processedData);
-
-                // 渲染当前数据（不放在 try-with-resources 中，避免关闭后仍需要用的文档）
-                XWPFTemplate template =
-                        XWPFTemplate.compile(templateFile, config).render(processedData);
-                NiceXWPFDocument currentDoc = template.getXWPFDocument();
-
-                if (mainDoc == null) {
-                    // 第一页：直接使用渲染结果作为主文档
-                    mainDoc = currentDoc;
-                } else {
-                    // 后续页：先添加分页符，再合并文档
-                    mainDoc.createParagraph().createRun().addBreak(BreakType.PAGE);
-                    try {
-                        NiceXWPFDocument merged = mainDoc.merge(currentDoc);
-                        // 合并完成后关闭旧的文档和当前模板
-                        mainDoc.close();
-                        currentDoc.close();
-                        mainDoc = merged;
-                    } catch (Exception e) {
-                        currentDoc.close();
-                        throw new IOException("Failed to merge document page " + (i + 1), e);
-                    }
-                }
-
-                log.debug("Rendered page {} of {}", i + 1, dataList.size());
+                // 使用 poi-tl 的 merge 合并下一个实例（merge 会关闭 nextDoc）
+                mainDoc = mainDoc.merge(nextDoc);
             }
 
             // 输出最终文档
             try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
-                if (mainDoc != null) {
-                    mainDoc.write(out);
-                }
+                mainDoc.write(out);
                 log.info(
-                        "Batch word document generated successfully, pages: {}, size: {} bytes",
+                        "Batch word document generated successfully, template instances: {}, size:"
+                                + " {} bytes",
                         dataList.size(),
                         out.size());
                 return out.toByteArray();
-            }
-        } finally {
-            if (mainDoc != null) {
+            } finally {
                 mainDoc.close();
             }
+        } catch (IOException e) {
+            throw e;
+        } catch (InvalidImagePayloadException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new IOException("Failed to merge batch word documents", e);
+        }
+    }
+
+    /**
+     * 渲染单个完整模板实例
+     *
+     * <p>先将 poi-tl 渲染结果写入内存，再重新加载为 {@link NiceXWPFDocument}，确保用于批量合并的文档状态完整、独立。
+     *
+     * @param templateFile 模板文件
+     * @param data 渲染数据
+     * @return 渲染后的完整模板实例
+     * @throws IOException 文件读取或写入异常
+     */
+    private NiceXWPFDocument renderTemplateInstance(File templateFile, Map<String, Object> data)
+            throws IOException {
+        // 预处理图片载荷：将结构化图片对象转换为 PictureRenderData
+        Map<String, Object> processedData = preprocessImagePayloads(data);
+
+        // 构建渲染配置
+        Configure config = buildRenderConfig(processedData);
+
+        try (XWPFTemplate template =
+                        XWPFTemplate.compile(templateFile, config).render(processedData);
+                ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+            template.write(out);
+            return new NiceXWPFDocument(new ByteArrayInputStream(out.toByteArray()));
         }
     }
 

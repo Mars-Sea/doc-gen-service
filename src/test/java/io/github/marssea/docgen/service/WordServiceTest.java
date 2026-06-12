@@ -11,6 +11,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.*;
+import org.apache.poi.xwpf.usermodel.BreakType;
 import org.apache.poi.xwpf.usermodel.XWPFDocument;
 import org.apache.poi.xwpf.usermodel.XWPFParagraph;
 import org.apache.poi.xwpf.usermodel.XWPFRun;
@@ -257,6 +258,96 @@ class WordServiceTest {
         }
 
         @Test
+        @DisplayName("批量生成应支持多页模板且保持数据顺序")
+        void shouldGenerateBatchDocumentWithMultiPageTemplateInOrder() throws Exception {
+            Path templatePath = tempDir.resolve("multi-page-batch-template.docx");
+            createMultiPageWordTemplate(templatePath);
+
+            List<Map<String, Object>> dataList =
+                    List.of(
+                            Map.of("name", "Alice", "summary", "First summary"),
+                            Map.of("name", "Bob", "summary", "Second summary"));
+
+            byte[] result = wordService.generateBatch("multi-page-batch-template.docx", dataList);
+
+            try (XWPFDocument doc = new XWPFDocument(new ByteArrayInputStream(result))) {
+                List<String> paragraphs =
+                        doc.getParagraphs().stream().map(XWPFParagraph::getText).toList();
+
+                assertParagraphOrder(
+                        paragraphs,
+                        "Page1 Name: Alice",
+                        "Page2 Summary: First summary",
+                        "Page1 Name: Bob",
+                        "Page2 Summary: Second summary");
+            }
+        }
+
+        @Test
+        @DisplayName("批量生成 4 页模板 x 3 条数据应保持 12 个标记的正确顺序")
+        void shouldGenerateBatchDocumentWith4PageTemplateAnd3Records() throws Exception {
+            Path templatePath = tempDir.resolve("four-page-template.docx");
+            createFourPageWordTemplate(templatePath);
+
+            List<Map<String, Object>> dataList =
+                    List.of(Map.of("id", "R1"), Map.of("id", "R2"), Map.of("id", "R3"));
+
+            byte[] result = wordService.generateBatch("four-page-template.docx", dataList);
+
+            try (XWPFDocument doc = new XWPFDocument(new ByteArrayInputStream(result))) {
+                List<String> paragraphs =
+                        doc.getParagraphs().stream().map(XWPFParagraph::getText).toList();
+
+                // 4 pages x 3 records = 12 markers in exact order
+                assertParagraphOrder(
+                        paragraphs,
+                        // Record 1
+                        "第一页 R1",
+                        "第二页 R1",
+                        "第三页 R1",
+                        "第四页 R1",
+                        // Record 2
+                        "第一页 R2",
+                        "第二页 R2",
+                        "第三页 R2",
+                        "第四页 R2",
+                        // Record 3
+                        "第一页 R3",
+                        "第二页 R3",
+                        "第三页 R3",
+                        "第四页 R3");
+            }
+        }
+
+        @Test
+        @DisplayName("批量生成多页模板应支持普通表格")
+        void shouldGenerateBatchDocumentWithMultiPageTemplateAndTable() throws Exception {
+            Path templatePath = tempDir.resolve("multi-page-table-template.docx");
+            createMultiPageTableTemplate(templatePath);
+
+            List<Map<String, Object>> dataList =
+                    List.of(
+                            Map.of("name", "Alice", "item", "A-1", "amount", 10),
+                            Map.of("name", "Bob", "item", "B-1", "amount", 30));
+
+            byte[] result = wordService.generateBatch("multi-page-table-template.docx", dataList);
+
+            try (XWPFDocument doc = new XWPFDocument(new ByteArrayInputStream(result))) {
+                String tableText =
+                        doc.getTables().stream()
+                                .flatMap(table -> table.getRows().stream())
+                                .flatMap(row -> row.getTableCells().stream())
+                                .map(cell -> cell.getText())
+                                .toList()
+                                .toString();
+                assertTrue(tableText.contains("A-1"));
+                assertTrue(tableText.contains("10"));
+                assertTrue(tableText.contains("B-1"));
+                assertTrue(tableText.contains("30"));
+            }
+        }
+
+        @Test
         @DisplayName("批量生成应支持首尾有空格的占位符")
         void shouldGenerateBatchDocumentWithSpacedPlaceholders() throws Exception {
             Path templatePath = tempDir.resolve("batch-spaced-template.docx");
@@ -384,12 +475,92 @@ class WordServiceTest {
         }
     }
 
+    /** 创建多页 Word 模板用于批量生成测试 */
+    private void createMultiPageWordTemplate(Path path) throws IOException {
+        try (XWPFDocument document = new XWPFDocument()) {
+            XWPFParagraph firstPage = document.createParagraph();
+            XWPFRun firstRun = firstPage.createRun();
+            firstRun.setText("Page1 Name: {{name}}");
+            firstRun.addBreak(BreakType.PAGE);
+
+            XWPFParagraph secondPage = document.createParagraph();
+            XWPFRun secondRun = secondPage.createRun();
+            secondRun.setText("Page2 Summary: {{summary}}");
+
+            try (FileOutputStream out = new FileOutputStream(path.toFile())) {
+                document.write(out);
+            }
+        }
+    }
+
+    /** 创建包含普通表格的多页 Word 模板用于批量生成测试 */
+    private void createMultiPageTableTemplate(Path path) throws IOException {
+        try (XWPFDocument document = new XWPFDocument()) {
+            XWPFParagraph firstPage = document.createParagraph();
+            XWPFRun firstRun = firstPage.createRun();
+            firstRun.setText("姓名: {{name}}");
+            firstRun.addBreak(BreakType.PAGE);
+
+            var table = document.createTable(2, 2);
+            table.getRow(0).getCell(0).setText("项目");
+            table.getRow(0).getCell(1).setText("金额");
+            table.getRow(1).getCell(0).setText("{{item}}");
+            table.getRow(1).getCell(1).setText("{{amount}}");
+
+            try (FileOutputStream out = new FileOutputStream(path.toFile())) {
+                document.write(out);
+            }
+        }
+    }
+
+    private void assertParagraphOrder(List<String> paragraphs, String... expectedTexts) {
+        String fullText = String.join("\n", paragraphs);
+        int currentIndex = -1;
+        for (String expected : expectedTexts) {
+            int foundIndex = fullText.indexOf(expected);
+            assertTrue(foundIndex > currentIndex, "Expected text in order: " + expected);
+            currentIndex = foundIndex;
+        }
+    }
+
     /** 创建无占位符的 Word 模板用于测试 */
     private void createPlainWordTemplate(Path path) throws IOException {
         try (XWPFDocument document = new XWPFDocument()) {
             XWPFParagraph paragraph = document.createParagraph();
             XWPFRun run = paragraph.createRun();
             run.setText("Plain document without placeholders");
+
+            try (FileOutputStream out = new FileOutputStream(path.toFile())) {
+                document.write(out);
+            }
+        }
+    }
+
+    /** 创建 4 页 Word 模板用于批量合并回归测试 */
+    private void createFourPageWordTemplate(Path path) throws IOException {
+        try (XWPFDocument document = new XWPFDocument()) {
+            // Page 1
+            XWPFParagraph p1 = document.createParagraph();
+            XWPFRun r1 = p1.createRun();
+            r1.setText("第一页 {{id}}");
+            r1.addBreak(BreakType.PAGE);
+
+            // Page 2
+            XWPFParagraph p2 = document.createParagraph();
+            XWPFRun r2 = p2.createRun();
+            r2.setText("第二页 {{id}}");
+            r2.addBreak(BreakType.PAGE);
+
+            // Page 3
+            XWPFParagraph p3 = document.createParagraph();
+            XWPFRun r3 = p3.createRun();
+            r3.setText("第三页 {{id}}");
+            r3.addBreak(BreakType.PAGE);
+
+            // Page 4
+            XWPFParagraph p4 = document.createParagraph();
+            XWPFRun r4 = p4.createRun();
+            r4.setText("第四页 {{id}}");
 
             try (FileOutputStream out = new FileOutputStream(path.toFile())) {
                 document.write(out);

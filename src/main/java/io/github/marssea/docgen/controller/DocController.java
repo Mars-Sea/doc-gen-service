@@ -124,13 +124,13 @@ public class DocController {
     /**
      * 批量生成 Word 文档
      *
-     * <p>使用同一模板渲染多条数据，每条数据生成一页，合并为单个文档。
+     * <p>使用同一模板渲染多条数据，每条数据生成一份完整模板实例，合并为单个文档。
      *
      * @param request 包含模板名称、数据列表和可选文件名的请求体
      * @return 生成的 .docx 文件二进制流
      * @throws IOException 文件处理异常
      */
-    @Operation(summary = "批量生成 Word 文档", description = "使用同一模板渲染多条数据，每条数据生成一页，合并为单个文档。")
+    @Operation(summary = "批量生成 Word 文档", description = "使用同一模板渲染多条数据，每条数据生成一份完整模板实例，合并为单个文档。")
     @ApiResponses(
             value = {
                 @ApiResponse(
@@ -177,8 +177,8 @@ public class DocController {
                 URLEncoder.encode(fileName + ".docx", StandardCharsets.UTF_8).replace("+", "%20");
 
         log.info(
-                "Batch word document generated successfully, pages: {}, size: {} bytes, fileName:"
-                        + " {}",
+                "Batch word document generated successfully, template instances: {}, size: {}"
+                        + " bytes, fileName: {}",
                 request.getDataList().size(),
                 bytes.length,
                 fileName);
