@@ -49,7 +49,7 @@ func main() {
 
 | Method | Description |
 |--------|-------------|
-| `NewClient(baseURL)` | Create client (30s timeout) |
+| `NewClient(baseURL)` | Create client (120s timeout) |
 | `NewClientWithTimeout(baseURL, timeout)` | Create client with custom timeout |
 
 ### Health Check

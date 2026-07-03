@@ -119,6 +119,13 @@ func ImageWithSize(url string, width, height int) map[string]any {
 	}
 }
 
+// defaultTimeout 默认客户端超时时间
+//
+// 填充大批量列表（数千行以上）的 Excel/Word 模板耗时可能明显长于常规请求，
+// 30 秒的超时曾导致客户端在服务端仍在处理时提前断开连接，
+// 使服务端后续写响应时因连接已关闭而报 "Broken pipe"（此时文档实际已生成成功）。
+const defaultTimeout = 300 * time.Second
+
 // NewClient 创建文档生成服务客户端
 //
 // baseURL: 服务地址，如 http://localhost:8081
@@ -126,7 +133,7 @@ func NewClient(baseURL string) *Client {
 	return &Client{
 		BaseURL: baseURL,
 		HTTPClient: &http.Client{
-			Timeout: 30 * time.Second,
+			Timeout: defaultTimeout,
 		},
 	}
 }

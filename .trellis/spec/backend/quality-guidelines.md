@@ -111,6 +111,72 @@ Use poi-tl `NiceXWPFDocument.merge()` because it handles body XML concatenation,
 
 ---
 
+## Excel Template Fill Contract
+
+### 1. Scope / Trigger
+
+- Trigger: changes to `/api/v1/doc/excel/fill` or `ExcelService.fillTemplate`.
+- This matters for large `listData` payloads because EasyExcel `forceNewRow(true)` disables streaming-style writes and keeps the workbook in memory.
+
+### 2. Signatures
+
+- Controller: `POST /api/v1/doc/excel/fill`
+- Request DTO: `ExcelFillRequest`
+- Service: `byte[] ExcelService.fillTemplate(String templateName, Map<String, Object> data, Map<String, List<Map<String, Object>>> listData)`
+
+### 3. Contracts
+
+- `templateName`: required `.xlsx` or `.xls` template name; validate with `TemplateValidationUtil.validateExcelTemplateExtension` before file access.
+- Single-value placeholders: `{field}` are filled from `data`.
+- List placeholders: support both unprefixed `{.field}` and named `{items.field}` placeholders.
+- Fill order: fill list data before single-value data so rows inserted by list fill do not move already-filled scalar cells.
+- Row insertion policy: inspect the template before filling. Use `forceNewRow(false)` only when the collection placeholder row is the final physical row on the sheet and no merged region extends below it. Use `forceNewRow(true)` when any physical template row, hidden row, merged region, footer, or second collection row exists below the collection row.
+- Do not unconditionally set `forceNewRow(true)` for all list fills.
+
+### 4. Validation & Error Matrix
+
+- Invalid template name/extension -> `IllegalArgumentException`.
+- Missing template file -> `TemplateNotFoundException`.
+- Invalid image payload in `data` -> `InvalidImagePayloadException`; do not swallow it.
+- Unexpected EasyExcel/POI failure -> wrap as `RuntimeException("Failed to fill Excel template: ...", cause)`.
+- Large terminal list should not fail with EasyExcel close/IO wrapper errors caused by unnecessary in-memory row shifting.
+
+### 5. Good/Base/Bad Cases
+
+- Good: a template whose list row is the final physical row fills 2,500+ records without forcing row insertion.
+- Good: a template with a summary/footer row, hidden row, blank preformatted row, merged region, or later collection row below the list preserves visible data by using `forceNewRow(true)`.
+- Base: a template with only scalar placeholders still returns a valid workbook.
+- Bad: always using `FillConfig.builder().forceNewRow(Boolean.TRUE)` for list fills; this makes large list fills slow and memory-heavy.
+
+### 6. Tests Required
+
+- Add or maintain `ExcelServiceTest` coverage for:
+  - 2,500+ row terminal list fill, asserting the first and last generated rows.
+  - List fill with a footer/summary row below it, asserting the footer is shifted and scalar-filled.
+  - Named list placeholder `{items.field}`, asserting the `listData` key is honored via `FillWrapper`.
+- Run focused verification with `mvn -Dtest=ExcelServiceTest test`.
+- Run full `mvn test` and `mvn spotless:check` before finishing.
+
+### 7. Wrong vs Correct
+
+#### Wrong
+
+```java
+FillConfig fillConfig = FillConfig.builder().forceNewRow(Boolean.TRUE).build();
+excelWriter.fill(rows, fillConfig, writeSheet);
+```
+
+#### Correct
+
+```java
+ExcelTemplateAnalysis templateAnalysis = analyzeExcelTemplate(templateFile);
+FillConfig fillConfig =
+        FillConfig.builder().forceNewRow(templateAnalysis.requiresForceNewRow()).build();
+excelWriter.fill(fillData, fillConfig, writeSheet);
+```
+
+---
+
 ## Code Review Checklist
 
 - [ ] `mvn spotless:check` passes

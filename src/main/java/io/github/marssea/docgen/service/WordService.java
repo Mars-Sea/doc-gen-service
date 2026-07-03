@@ -103,8 +103,8 @@ public class WordService {
      *
      * <p>使用同一模板渲染多条数据，每条数据生成一份完整模板实例，合并为单个文档。
      *
-     * <p>合并策略：以第一个渲染实例作为主文档，后续实例通过 poi-tl 的 {@code NiceXWPFDocument.merge()} 逐个合并。 poi-tl 的 merge
-     * 机制会正确处理 body XML 拼接、关系 ID 重映射（图片、超链接、样式等）和 sectPr 剥离， 从而支持多页模板的完整实例合并。模板实例之间插入分页符。
+     * <p>合并策略：以第一个渲染实例作为主文档，后续实例通过 poi-tl 的 {@code NiceXWPFDocument.merge()} 逐个合并。 在此之前，先将主文档的 body
+     * 元素序列化再反序列化，确保内部状态一致。 模板实例之间插入分页符。
      *
      * @param templateName 模板文件名（需包含扩展名，如 template.docx）
      * @param dataList 数据列表，每条数据生成一份完整模板实例
@@ -148,7 +148,7 @@ public class WordService {
                 NiceXWPFDocument nextDoc = renderTemplateInstance(templateFile, data);
                 log.debug("Rendered template instance {} of {}", i + 1, dataList.size());
 
-                // 在主文档末尾创建一个分页符段落作为合并插入点
+                // 在主文档末尾添加分页符段落
                 XWPFParagraph pageBreakPara = mainDoc.createParagraph();
                 pageBreakPara.createRun().addBreak(BreakType.PAGE);
 

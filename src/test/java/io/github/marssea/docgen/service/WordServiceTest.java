@@ -17,6 +17,10 @@ import org.apache.poi.xwpf.usermodel.XWPFParagraph;
 import org.apache.poi.xwpf.usermodel.XWPFRun;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.io.TempDir;
+import org.openxmlformats.schemas.wordprocessingml.x2006.main.CTP;
+import org.openxmlformats.schemas.wordprocessingml.x2006.main.CTPPr;
+import org.openxmlformats.schemas.wordprocessingml.x2006.main.CTSectPr;
+import org.openxmlformats.schemas.wordprocessingml.x2006.main.STSectionMark;
 
 /** WordService 单元测试 */
 @DisplayName("WordService 测试")
@@ -284,7 +288,7 @@ class WordServiceTest {
         }
 
         @Test
-        @DisplayName("批量生成 4 页模板 x 3 条数据应保持 12 个标记的正确顺序")
+        @DisplayName("批量生成 4 页模板(段落分页符) x 3 条数据应保持 12 个标记的正确顺序")
         void shouldGenerateBatchDocumentWith4PageTemplateAnd3Records() throws Exception {
             Path templatePath = tempDir.resolve("four-page-template.docx");
             createFourPageWordTemplate(templatePath);
@@ -316,6 +320,121 @@ class WordServiceTest {
                         "第二页 R3",
                         "第三页 R3",
                         "第四页 R3");
+            }
+        }
+
+        @Test
+        @DisplayName("批量生成 4 页模板(节分隔符) x 3 条数据应保持 12 个标记的正确顺序")
+        void shouldGenerateBatchDocumentWith4SectionTemplateAnd3Records() throws Exception {
+            Path templatePath = tempDir.resolve("four-section-template.docx");
+            createFourSectionWordTemplate(templatePath);
+
+            List<Map<String, Object>> dataList =
+                    List.of(Map.of("id", "R1"), Map.of("id", "R2"), Map.of("id", "R3"));
+
+            byte[] result = wordService.generateBatch("four-section-template.docx", dataList);
+
+            try (XWPFDocument doc = new XWPFDocument(new ByteArrayInputStream(result))) {
+                List<String> paragraphs =
+                        doc.getParagraphs().stream().map(XWPFParagraph::getText).toList();
+
+                // Debug: print all paragraphs to understand actual output
+                System.out.println("=== ALL PARAGRAPHS (section breaks) ===");
+                for (int i = 0; i < paragraphs.size(); i++) {
+                    System.out.println("  [" + i + "] '" + paragraphs.get(i) + "'");
+                }
+                System.out.println("=======================================");
+
+                // 4 pages x 3 records = 12 markers in exact order
+                assertParagraphOrder(
+                        paragraphs,
+                        // Record 1
+                        "第一页 R1",
+                        "第二页 R1",
+                        "第三页 R1",
+                        "第四页 R1",
+                        // Record 2
+                        "第一页 R2",
+                        "第二页 R2",
+                        "第三页 R2",
+                        "第四页 R2",
+                        // Record 3
+                        "第一页 R3",
+                        "第二页 R3",
+                        "第三页 R3",
+                        "第四页 R3");
+            }
+        }
+
+        @Test
+        @DisplayName("批量生成 4 页模板(节分隔符) x 3 条数据 - 原始 XML 验证")
+        void shouldMergeFourSectionTemplateCorrectlyAtXmlLevel() throws Exception {
+            Path templatePath = tempDir.resolve("four-section-xml-template.docx");
+            createFourSectionWordTemplate(templatePath);
+
+            List<Map<String, Object>> dataList =
+                    List.of(Map.of("id", "R1"), Map.of("id", "R2"), Map.of("id", "R3"));
+
+            byte[] result = wordService.generateBatch("four-section-xml-template.docx", dataList);
+
+            // Write the result to a temp file for inspection
+            Path outputPath = tempDir.resolve("batch-section-output.docx");
+            try (FileOutputStream fos = new FileOutputStream(outputPath.toFile())) {
+                fos.write(result);
+            }
+
+            try (XWPFDocument doc = new XWPFDocument(new ByteArrayInputStream(result))) {
+                String bodyXml = doc.getDocument().getBody().xmlText();
+
+                // Count how many times each marker appears
+                int r1Count = countOccurrences(bodyXml, "R1");
+                int r2Count = countOccurrences(bodyXml, "R2");
+                int r3Count = countOccurrences(bodyXml, "R3");
+
+                System.out.println("=== XML Marker Counts ===");
+                System.out.println("R1 count: " + r1Count);
+                System.out.println("R2 count: " + r2Count);
+                System.out.println("R3 count: " + r3Count);
+                System.out.println("=========================");
+
+                // Each record should appear exactly 4 times (once per page)
+                assertEquals(4, r1Count, "R1 should appear 4 times");
+                assertEquals(4, r2Count, "R2 should appear 4 times");
+                assertEquals(4, r3Count, "R3 should appear 4 times");
+            }
+        }
+
+        @Test
+        @DisplayName("单个模板实例渲染后应保留所有节属性")
+        void shouldPreserveSectionPropertiesAfterRendering() throws Exception {
+            Path templatePath = tempDir.resolve("section-render-template.docx");
+            createFourSectionWordTemplate(templatePath);
+
+            // Render a single instance and check the XML
+            Map<String, Object> data = Map.of("id", "TEST");
+            byte[] singleResult = wordService.generateWord("section-render-template.docx", data);
+
+            try (XWPFDocument doc = new XWPFDocument(new ByteArrayInputStream(singleResult))) {
+                String bodyXml = doc.getDocument().getBody().xmlText();
+
+                // Count sectPr occurrences
+                int sectPrCount = countOccurrences(bodyXml, "sectPr");
+                System.out.println("=== Single Instance sectPr Count: " + sectPrCount + " ===");
+
+                // Count marker occurrences
+                int testCount = countOccurrences(bodyXml, "TEST");
+                System.out.println("=== Single Instance TEST Count: " + testCount + " ===");
+
+                // Should have 4 instances of "TEST" (one per page)
+                assertEquals(4, testCount, "TEST should appear 4 times in single instance");
+
+                // Check paragraphs
+                List<String> paragraphs =
+                        doc.getParagraphs().stream().map(XWPFParagraph::getText).toList();
+                System.out.println("=== Single Instance Paragraphs ===");
+                for (int i = 0; i < paragraphs.size(); i++) {
+                    System.out.println("  [" + i + "] '" + paragraphs.get(i) + "'");
+                }
             }
         }
 
@@ -566,5 +685,75 @@ class WordServiceTest {
                 document.write(out);
             }
         }
+    }
+
+    /**
+     * 创建 4 页 Word 模板（使用节分隔符，模拟真实 Word 文档的多页结构）
+     *
+     * <p>与 {@link #createFourPageWordTemplate} 不同，此方法使用 {@code <w:sectPr>} 节属性来分隔页面， 模拟 Microsoft
+     * Word 创建的多节文档。真实用户的模板通常采用这种方式组织多页内容。
+     */
+    private void createFourSectionWordTemplate(Path path) throws IOException {
+        try (XWPFDocument document = new XWPFDocument()) {
+            // Page 1 content
+            XWPFParagraph p1 = document.createParagraph();
+            p1.createRun().setText("第一页 {{id}}");
+
+            // Section break (next page) after page 1
+            XWPFParagraph sectP1 = document.createParagraph();
+            CTP ctP1 = sectP1.getCTP();
+            CTPPr pPr1 = ctP1.isSetPPr() ? ctP1.getPPr() : ctP1.addNewPPr();
+            CTSectPr sect1 = pPr1.addNewSectPr();
+            sect1.addNewType().setVal(STSectionMark.NEXT_PAGE);
+
+            // Page 2 content
+            XWPFParagraph p2 = document.createParagraph();
+            p2.createRun().setText("第二页 {{id}}");
+
+            // Section break (next page) after page 2
+            XWPFParagraph sectP2 = document.createParagraph();
+            CTP ctP2 = sectP2.getCTP();
+            CTPPr pPr2 = ctP2.isSetPPr() ? ctP2.getPPr() : ctP2.addNewPPr();
+            CTSectPr sect2 = pPr2.addNewSectPr();
+            sect2.addNewType().setVal(STSectionMark.NEXT_PAGE);
+
+            // Page 3 content
+            XWPFParagraph p3 = document.createParagraph();
+            p3.createRun().setText("第三页 {{id}}");
+
+            // Section break (next page) after page 3
+            XWPFParagraph sectP3 = document.createParagraph();
+            CTP ctP3 = sectP3.getCTP();
+            CTPPr pPr3 = ctP3.isSetPPr() ? ctP3.getPPr() : ctP3.addNewPPr();
+            CTSectPr sect3 = pPr3.addNewSectPr();
+            sect3.addNewType().setVal(STSectionMark.NEXT_PAGE);
+
+            // Page 4 content
+            XWPFParagraph p4 = document.createParagraph();
+            p4.createRun().setText("第四页 {{id}}");
+
+            try (FileOutputStream out = new FileOutputStream(path.toFile())) {
+                document.write(out);
+            }
+        }
+    }
+
+    /** 在文档末尾添加一个节分隔符段落（模拟 Word 的"下一页"分节符） */
+    private void addSectionBreak(XWPFDocument document) {
+        XWPFParagraph sectPara = document.createParagraph();
+        CTP ctP = sectPara.getCTP();
+        CTPPr pPr = ctP.isSetPPr() ? ctP.getPPr() : ctP.addNewPPr();
+        CTSectPr sectPr = pPr.addNewSectPr();
+        sectPr.addNewType().setVal(STSectionMark.NEXT_PAGE);
+    }
+
+    private int countOccurrences(String text, String target) {
+        int count = 0;
+        int idx = 0;
+        while ((idx = text.indexOf(target, idx)) != -1) {
+            count++;
+            idx += target.length();
+        }
+        return count;
     }
 }
