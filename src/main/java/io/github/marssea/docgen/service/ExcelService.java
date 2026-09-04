@@ -114,12 +114,16 @@ public class ExcelService {
      * @param templateName 模板文件名（需包含扩展名，如 template.xlsx）
      * @param data 单值变量数据
      * @param listData 列表数据（用于循环填充）
+     * @param sheetNo 工作表索引（从 0 开始），为 null 时使用默认值
+     * @param sheetName 工作表名称，为 null/空时使用默认值；当 sheetNo 不为 null 时 sheetNo 优先
      * @return 生成的 Excel 文档二进制流
      */
     public byte[] fillTemplate(
             String templateName,
             Map<String, Object> data,
-            Map<String, List<Map<String, Object>>> listData) {
+            Map<String, List<Map<String, Object>>> listData,
+            Integer sheetNo,
+            String sheetName) {
         // 安全校验：防止路径遍历攻击，验证扩展名
         TemplateValidationUtil.validateExcelTemplateExtension(templateName);
 
@@ -145,7 +149,7 @@ public class ExcelService {
             try (ExcelWriter excelWriter =
                     EasyExcel.write(out).withTemplate(templateFile).build()) {
 
-                WriteSheet writeSheet = EasyExcel.writerSheet().build();
+                WriteSheet writeSheet = buildWriteSheet(sheetNo, sheetName);
 
                 // 配置列表填充：自动换行
                 FillConfig fillConfig = FillConfig.builder().forceNewRow(Boolean.TRUE).build();
@@ -174,6 +178,36 @@ public class ExcelService {
         } catch (Exception e) {
             log.error("Failed to fill Excel template", e);
             throw new RuntimeException("Failed to fill Excel template: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * 基于模板填充 Excel 文档（默认填充第一个 sheet）
+     *
+     * @param templateName 模板文件名（需包含扩展名，如 template.xlsx）
+     * @param data 单值变量数据
+     * @param listData 列表数据（用于循环填充）
+     * @return 生成的 Excel 文档二进制流
+     */
+    public byte[] fillTemplate(
+            String templateName,
+            Map<String, Object> data,
+            Map<String, List<Map<String, Object>>> listData) {
+        return fillTemplate(templateName, data, listData, null, null);
+    }
+
+    /**
+     * 构建 WriteSheet 实例
+     *
+     * <p>优先使用 sheetNo，其次使用 sheetName，都为空时默认使用索引 0。
+     */
+    private WriteSheet buildWriteSheet(Integer sheetNo, String sheetName) {
+        if (sheetNo != null) {
+            return EasyExcel.writerSheet(sheetNo, sheetName).build();
+        } else if (sheetName != null && !sheetName.isBlank()) {
+            return EasyExcel.writerSheet(sheetName).build();
+        } else {
+            return EasyExcel.writerSheet().build();
         }
     }
 

@@ -74,6 +74,8 @@ func main() {
 |----------|---------|-------------|
 | `Image(url)` | `map[string]any` | Create image payload with default size (300x200) |
 | `ImageWithSize(url, width, height)` | `map[string]any` | Create image payload with custom size |
+| `QrCode(content)` | `map[string]any` | Create QR code payload (generated server-side, default size 150x150) |
+| `QrCodeWithSize(content, width, height)` | `map[string]any` | Create QR code payload with custom size (50–2000 px) |
 
 ### Excel Document Generation
 
@@ -106,6 +108,19 @@ data := map[string]any{
 }
 doc, _ := client.GenerateWord("report-template.docx", data, "report")
 os.WriteFile("report.docx", doc, 0644)
+```
+
+### Insert QR Code in Word
+
+```go
+// Template contains {{@qr}} image tag; QR code is generated server-side
+data := map[string]any{
+    "title": "入库单",
+    "qr":    docgen.QrCode("https://example.com/order/123"),
+    "qrLarge": docgen.QrCodeWithSize("https://example.com/order/456", 300, 300),
+}
+doc, _ := client.GenerateWord("qr-template.docx", data, "qr_doc")
+os.WriteFile("qr_doc.docx", doc, 0644)
 ```
 
 ### Batch Generate Word
@@ -196,6 +211,7 @@ excelDoc, _ := client.FillExcelTemplate("template.xlsx", data, listData, "output
 | `GenerateWord()` / `SaveWord()` | 生成 Word 文档 |
 | `BatchGenerateWord()` / `SaveBatchWord()` | 批量生成 Word 文档 |
 | `Image()` / `ImageWithSize()` | 图片载荷构造辅助函数 |
+| `QrCode()` / `QrCodeWithSize()` | 二维码载荷构造辅助函数（服务端本地生成） |
 | `GenerateExcel()` / `SaveExcel()` | 动态生成 Excel |
 | `FillExcelTemplate()` / `SaveFilledExcel()` | 填充 Excel 模板 |
 | `UploadTemplate()` / `ListTemplates()` / `DeleteTemplate()` | 模板管理 |

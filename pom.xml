@@ -17,6 +17,7 @@
         <java.version>17</java.version>
         <poi-tl.version>1.12.1</poi-tl.version>
         <easyexcel.version>4.0.1</easyexcel.version>
+        <zxing.version>3.5.3</zxing.version>
     </properties>
     <dependencies>
         <dependency>
@@ -54,6 +55,18 @@
             <groupId>com.alibaba</groupId>
             <artifactId>easyexcel</artifactId>
             <version>${easyexcel.version}</version>
+        </dependency>
+
+        <!-- QR Code Generation (for Word qrcode payload) -->
+        <dependency>
+            <groupId>com.google.zxing</groupId>
+            <artifactId>core</artifactId>
+            <version>${zxing.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.google.zxing</groupId>
+            <artifactId>javase</artifactId>
+            <version>${zxing.version}</version>
         </dependency>
 
         <dependency>

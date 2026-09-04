@@ -1,4 +1,0 @@
-{"file":".trellis/spec/backend/index.md","reason":"Backend package overview for verifying affected service/controller behavior."}
-{"file":".trellis/spec/backend/quality-guidelines.md","reason":"Checklist for test coverage, build verification, and regression confidence."}
-{"file":".trellis/spec/backend/error-handling.md","reason":"Verify errors remain consistent for invalid templates/data/image payloads."}
-{"file":".trellis/spec/guides/cross-layer-thinking-guide.md","reason":"Check controller DTO docs, service behavior, and tests remain aligned."}

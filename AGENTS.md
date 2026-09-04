@@ -1,21 +1,36 @@
-<!-- TRELLIS:START -->
-# Trellis Instructions
+# AGENTS.md
 
-These instructions are for AI assistants working in this project.
+This file provides guidance to AI agents (Claude Code, Codex, etc.) when working with code in this repository.
 
-This project is managed by Trellis. The working knowledge you need lives under `.trellis/`:
+## Project
 
-- `.trellis/workflow.md` — development phases, when to create tasks, skill routing
-- `.trellis/spec/` — package- and layer-scoped coding guidelines (read before writing code in a given layer)
-- `.trellis/workspace/` — per-developer journals and session traces
-- `.trellis/tasks/` — active and archived tasks (PRDs, research, jsonl context)
+Java 17 Spring Boot 3.2.1 microservice for document generation (Word/Excel). Uses Maven.
 
-If a Trellis command is available on your platform (e.g. `/trellis:finish-work`, `/trellis:continue`), prefer it over manual steps. Not every platform exposes every command.
+## Build & Test
 
-If you're using Codex or another agent-capable tool, additional project-scoped helpers may live in:
-- `.agents/skills/` — reusable Trellis skills
-- `.codex/agents/` — optional custom subagents
+- **Build:** `mvn clean package`
+- **Test:** `mvn test`
+- **Format:** `mvn spotless:apply`
+- **Check format:** `mvn spotless:check`
+- **Skip tests:** `mvn clean package -DskipTests` (used for Docker builds)
+- **Run locally:** `java -jar target/doc-gen-service-0.0.6.jar`
+- **Run with Docker:** `mvn clean package -DskipTests && docker-compose up -d --build`
 
-Managed by Trellis. Edits outside this block are preserved; edits inside may be overwritten by a future `trellis update`.
+## Tech Stack
 
-<!-- TRELLIS:END -->
+- **Word generation:** poi-tl 1.12.1 (template-based)
+- **Excel generation:** EasyExcel 4.0.1
+- **Boilerplate reduction:** Lombok (`@Data`, `@Slf4j`, etc.)
+- **API docs:** SpringDoc OpenAPI 2.3.0 at `/swagger-ui.html`
+- **Code coverage:** JaCoCo 0.8.11 (report generated during `mvn test`)
+- **Formatting:** Spotless 2.43.0 with google-java-format (AOSP style)
+
+## Configuration
+
+- `TEMPLATE_PATH` — template files directory (default: `./templates`)
+- `SERVER_PORT` — server port (default: `8081`)
+
+## Notes
+
+- The previous Trellis-managed instructions under `.trellis/` were removed; this file is the canonical agent guidance for the repo.
+- `com/` and `sdk/` at the repository root are local vendored directories, not part of the Maven build.

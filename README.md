@@ -261,8 +261,15 @@ docker buildx build --platform linux/amd64 -t doc-gen-service:amd64 --load .
 |--------|-------------|---------|
 | `{{variable}}` | Text replacement | `{{title}}` |
 | `{{@image}}` | Image insertion (URL payload) | `{{@logo}}` — pass `{"type":"image","url":"..."}` |
-| `{{#table}}` | Table loop | `{{#items}}` |
-| `{{?condition}}` | Conditional | `{{?showHeader}}` |
+| `{{@qr}}` | QR code generation (server-side, ZXing) | `{{@qr}}` — pass `{"type":"qrcode","content":"..."}` |
+| `{{items}}` + `[field]` | Table row loop: trigger tag `{{items}}` on the row above, `[name]`-style placeholders in the data row below | `{{items}}` + `[name]` |
+
+> Note: `{{#table}}` (dynamic table) and `{{?condition}}` (conditional block) from the poi-tl
+> documentation are **not** supported by this service — no such render policies are registered.
+>
+> QR code payload fields: `content` (required), `width` / `height` (optional, default 150,
+> valid range 50–2000). QR codes are generated server-side. In table loop data rows use the
+> image-tag syntax `[@qr]` (a plain `[qr]` is a text tag and cannot render pictures).
 
 ### Excel (EasyExcel)
 

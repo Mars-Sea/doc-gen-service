@@ -258,8 +258,15 @@ docker buildx build --platform linux/amd64 -t doc-gen-service:amd64 --load .
 |------|------|------|
 | `{{variable}}` | 文本替换 | `{{title}}` |
 | `{{@image}}` | 图片插入（URL 载荷） | `{{@logo}}` — 传入 `{"type":"image","url":"..."}` |
-| `{{#table}}` | 表格循环 | `{{#items}}` |
-| `{{?condition}}` | 条件判断 | `{{?showHeader}}` |
+| `{{@qr}}` | 二维码生成（服务端本地生成，基于 ZXing） | `{{@qr}}` — 传入 `{"type":"qrcode","content":"..."}` |
+| `{{items}}` + `[field]` | 表格行循环：触发标签 `{{items}}` 写在数据行的上一行，数据行用 `[name]` 风格占位 | `{{items}}` + `[name]` |
+
+> 注意：poi-tl 官方文档中的 `{{#table}}`（动态表格）与 `{{?condition}}`（区块对条件）在本服务中
+> **不受支持** —— 未注册对应的渲染策略。
+>
+> 二维码载荷字段：`content`（必填），`width` / `height`（可选，默认 150，取值范围 50–2000）。
+> 二维码由服务端本地生成。表格循环数据行内请使用图片标签写法 `[@qr]`（`[qr]` 是文本标签，
+> 无法渲染图片）。
 
 ### Excel (EasyExcel)
 

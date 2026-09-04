@@ -104,17 +104,31 @@ class TemplateValidationUtilTest {
         }
 
         @Test
-        @DisplayName(".doc 扩展名应该通过验证")
-        void shouldPassValidationForDocExtension() {
-            assertDoesNotThrow(
-                    () -> TemplateValidationUtil.validateWordTemplateExtension("template.doc"));
-            assertDoesNotThrow(
+        @DisplayName(".doc 扩展名应被拒绝（poi-tl 仅支持 OOXML 的 .docx）")
+        void shouldRejectDocExtension() {
+            IllegalArgumentException exception =
+                    assertThrows(
+                            IllegalArgumentException.class,
+                            () ->
+                                    TemplateValidationUtil.validateWordTemplateExtension(
+                                            "template.doc"));
+            assertEquals("Word 模板必须是 .docx 格式", exception.getMessage());
+            assertThrows(
+                    IllegalArgumentException.class,
                     () -> TemplateValidationUtil.validateWordTemplateExtension("TEMPLATE.DOC"));
         }
 
         @ParameterizedTest
-        @ValueSource(strings = {"template.xlsx", "template.pdf", "template.txt", "template"})
-        @DisplayName("非 Word 扩展名应该抛出异常")
+        @ValueSource(
+                strings = {
+                    "template.xlsx",
+                    "template.pdf",
+                    "template.txt",
+                    "template",
+                    "template.doc",
+                    "TEMPLATE.DOC"
+                })
+        @DisplayName("非 .docx 扩展名应该抛出异常")
         void shouldThrowExceptionForNonWordExtension(String templateName) {
             IllegalArgumentException exception =
                     assertThrows(
@@ -122,7 +136,7 @@ class TemplateValidationUtilTest {
                             () ->
                                     TemplateValidationUtil.validateWordTemplateExtension(
                                             templateName));
-            assertEquals("Word 模板必须是 .docx 或 .doc 格式", exception.getMessage());
+            assertEquals("Word 模板必须是 .docx 格式", exception.getMessage());
         }
     }
 

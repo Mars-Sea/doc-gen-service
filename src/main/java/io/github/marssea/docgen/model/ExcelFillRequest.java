@@ -83,4 +83,27 @@ public class ExcelFillRequest {
      */
     @Schema(description = "自定义输出文件名（不含扩展名）", example = "report_2024")
     private String fileName;
+
+    /**
+     * 指定填充的工作表名称（可选）
+     *
+     * <p>当模板包含多个 sheet 时，可通过名称指定要填充的 sheet。
+     * 若不指定则默认填充第一个 sheet。
+     * 与 sheetNo 同时指定时，sheetNo 优先。
+     */
+    @Schema(
+            description = "指定填充的工作表名称（可选，与 sheetNo 同时指定时 sheetNo 优先）",
+            example = "数据表")
+    private String sheetName;
+
+    /**
+     * 指定填充的工作表索引（可选，从 0 开始）
+     *
+     * <p>当模板包含多个 sheet 时，可通过索引指定要填充的 sheet。
+     * 若不指定则默认填充第一个 sheet（索引 0）。
+     */
+    @Schema(
+            description = "指定填充的工作表索引（从 0 开始，可选）",
+            example = "0")
+    private Integer sheetNo;
 }

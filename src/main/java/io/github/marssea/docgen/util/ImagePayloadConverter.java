@@ -19,7 +19,7 @@ import org.springframework.stereotype.Component;
 /**
  * 图片载荷转换工具
  *
- * <p>将请求数据中的结构化图片对象转换为 poi-tl 的 {@link PictureRenderData}。 支持 URL 图片输入，自动校验协议和图片格式。
+ * <p>将请求数据中的结构化图片对象转换为 poi-tl 的 {@link PictureRenderData}。 支持 URL 图片输入，自动校验协议，并依据下载内容的魔术字节判定图片格式。
  *
  * <p>图片载荷格式示例：
  *
@@ -50,6 +50,15 @@ public class ImagePayloadConverter {
 
     /** 支持的图片格式 */
     private static final Set<String> SUPPORTED_FORMATS = Set.of("png", "jpg", "jpeg");
+
+    /**
+     * 可识别的图片扩展名（含本服务不支持的格式）。
+     *
+     * <p>用于区分 URL 后缀究竟是“图片格式”还是“无意义的动态脚本后缀”（如 {@code .php}、{@code .do}）： 前者可据以判断格式，后者不可靠，应推迟到依据响应
+     * Content-Type 判断。
+     */
+    private static final Set<String> KNOWN_IMAGE_EXTENSIONS =
+            Set.of("png", "jpg", "jpeg", "gif", "bmp", "webp", "tif", "tiff", "svg", "ico");
 
     /** 支持的 URL 协议 */
     private static final Set<String> SUPPORTED_PROTOCOLS = Set.of("http", "https");
@@ -110,7 +119,8 @@ public class ImagePayloadConverter {
         validateInferredUrlFormat(fieldName, url, explicitFormat);
 
         DownloadedImage image = downloadImage(fieldName, url);
-        String format = resolveFormat(fieldName, url, explicitFormat, image.contentType());
+        String format =
+                resolveFormat(fieldName, url, explicitFormat, image.contentType(), image.bytes());
         return new ConvertedImage(image.bytes(), format, width, height);
     }
 
@@ -166,7 +176,9 @@ public class ImagePayloadConverter {
     private void validateInferredUrlFormat(String fieldName, String url, String explicitFormat) {
         if (explicitFormat == null) {
             String formatFromUrl = inferFormatFromUrl(url);
-            if (formatFromUrl != null) {
+            // 仅当 URL 后缀是“可识别的图片格式”时才提前校验；
+            // 非图片后缀（如 .php/.do/.asp）不可靠，推迟到依据 Content-Type 判断，避免误杀合法图片。
+            if (formatFromUrl != null && KNOWN_IMAGE_EXTENSIONS.contains(formatFromUrl)) {
                 validateFormat(fieldName, formatFromUrl);
             }
         }
@@ -287,35 +299,84 @@ public class ImagePayloadConverter {
         }
     }
 
-    /** 解析图片格式 */
+    /**
+     * 解析图片格式：以**下载内容的魔术字节**为准
+     *
+     * <p>URL 后缀与响应 Content-Type 均不可信：源站可能配置错误，也可能返回 {@code 200 + HTML 错误页}。 仅依据二者判定会把非图片内容当作图片嵌入
+     * docx，用户打开 Word 后才发现图片无法显示。
+     *
+     * <p>URL 后缀 / Content-Type / 显式声明的格式仅用于与魔术字节交叉校验：不一致时记录告警，
+     * 最终采用魔术字节识别出的真实格式；若魔术字节无法识别为受支持的图片，则直接拒绝。
+     *
+     * @param fieldName 数据 Map 中的字段名（用于错误消息）
+     * @param url 图片 URL
+     * @param explicitFormat 载荷中显式声明的格式，可为 null
+     * @param contentType 响应 Content-Type，可为 null
+     * @param bytes 下载得到的图片字节
+     * @return 图片格式（png / jpg）
+     */
     private String resolveFormat(
-            String fieldName, String url, String explicitFormat, String contentType) {
-        if (explicitFormat != null) {
-            return explicitFormat;
+            String fieldName, String url, String explicitFormat, String contentType, byte[] bytes) {
+        String actualFormat = sniffFormat(bytes);
+        if (actualFormat == null) {
+            throw new InvalidImagePayloadException(
+                    fieldName,
+                    "Image content for '"
+                            + fieldName
+                            + "' is not a valid PNG or JPEG image (unrecognized magic bytes)."
+                            + " The URL may not point to a real image.");
         }
 
-        String formatFromUrl = inferFormatFromUrl(url);
-        if (formatFromUrl != null) {
-            validateFormat(fieldName, formatFromUrl);
-            return formatFromUrl;
+        String inferred = explicitFormat;
+        if (inferred == null) {
+            String formatFromUrl = inferFormatFromUrl(url);
+            if (formatFromUrl != null && SUPPORTED_FORMATS.contains(formatFromUrl)) {
+                inferred = formatFromUrl;
+            } else {
+                inferred = inferFormatFromContentType(contentType);
+            }
         }
-
-        String formatFromContentType = inferFormatFromContentType(contentType);
-        if (formatFromContentType != null) {
-            return formatFromContentType;
+        if (inferred != null && !inferred.equals(actualFormat)) {
+            log.warn(
+                    "Image format mismatch for '{}': declared/inferred '{}' but actual content is"
+                            + " '{}'; using actual format",
+                    fieldName,
+                    inferred,
+                    actualFormat);
         }
+        return actualFormat;
+    }
 
-        throw new InvalidImagePayloadException(
-                fieldName,
-                "Image format for '"
-                        + fieldName
-                        + "' cannot be inferred from URL or Content-Type. Supported formats: png,"
-                        + " jpg, jpeg");
+    /**
+     * 依据魔术字节识别真实图片格式
+     *
+     * @param bytes 图片字节
+     * @return {@code "png"} / {@code "jpg"}；字节过短或无法识别（如 HTML 错误页）时返回 null
+     */
+    private String sniffFormat(byte[] bytes) {
+        if (bytes == null || bytes.length < 3) {
+            return null;
+        }
+        int b0 = bytes[0] & 0xFF;
+        int b1 = bytes[1] & 0xFF;
+        int b2 = bytes[2] & 0xFF;
+        // PNG: 89 50 4E 47 0D 0A 1A 0A
+        if (b0 == 0x89 && b1 == 0x50 && b2 == 0x4E) {
+            return "png";
+        }
+        // JPEG: FF D8 FF
+        if (b0 == 0xFF && b1 == 0xD8 && b2 == 0xFF) {
+            return "jpg";
+        }
+        return null;
     }
 
     /** 从 URL 路径推断图片格式 */
     private String inferFormatFromUrl(String url) {
         String path = URI.create(url).getPath();
+        if (path == null) {
+            return null;
+        }
         int dotIndex = path.lastIndexOf('.');
         if (dotIndex < 0 || dotIndex == path.length() - 1) {
             return null;

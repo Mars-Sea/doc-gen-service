@@ -47,16 +47,17 @@ public final class TemplateValidationUtil {
     /**
      * 验证 Word 模板扩展名
      *
-     * <p>支持 .docx (推荐) 和 .doc (旧版) 格式 注意：poi-tl 仅支持 .docx 格式，.doc 文件可能会导致运行时错误
+     * <p>仅支持 .docx 格式：poi-tl 基于 OOXML，.doc（OLE2 格式）会在渲染阶段抛出 {@code
+     * OLE2NotOfficeXmlFileException}，导致返回 500。此处提前拦截，返回 400 并给出明确提示。
      *
      * @param templateName 模板文件名
-     * @throws IllegalArgumentException 当扩展名不是 Word 格式时抛出
+     * @throws IllegalArgumentException 当扩展名不是 .docx 时抛出
      */
     public static void validateWordTemplateExtension(String templateName) {
         validateTemplateName(templateName);
         String lowerName = templateName.toLowerCase();
-        if (!lowerName.endsWith(".docx") && !lowerName.endsWith(".doc")) {
-            throw new IllegalArgumentException("Word 模板必须是 .docx 或 .doc 格式");
+        if (!lowerName.endsWith(".docx")) {
+            throw new IllegalArgumentException("Word 模板必须是 .docx 格式");
         }
     }
 

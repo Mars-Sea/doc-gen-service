@@ -179,6 +179,24 @@ class ImagePayloadConverterTest {
         }
 
         @Test
+        @DisplayName("URL 后缀为非图片扩展名(.php)时不应因格式误杀，应推迟到下载阶段")
+        void shouldNotRejectNonImageUrlExtension() {
+            Map<String, Object> payload = new HashMap<>();
+            payload.put("type", "image");
+            payload.put("url", "https://invalid.nonexistent.domain/image.php?id=1");
+
+            InvalidImagePayloadException ex =
+                    assertThrows(
+                            InvalidImagePayloadException.class,
+                            () -> converter.convert("logo", payload));
+            // 不应因 URL 后缀报 "not supported"，而应走到下载阶段失败（说明已推迟到 Content-Type 判断）
+            assertFalse(
+                    ex.getMessage().contains("not supported"),
+                    "非图片后缀不应被当作不支持的格式，实际: " + ex.getMessage());
+            assertTrue(ex.getMessage().contains("Failed to download"));
+        }
+
+        @Test
         @DisplayName("width 为 0 时应抛出异常")
         void shouldThrowForZeroWidth() {
             Map<String, Object> payload = new HashMap<>();

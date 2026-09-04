@@ -473,7 +473,8 @@ class DocControllerTest {
         @DisplayName("成功填充 Excel 模板")
         void shouldFillExcelTemplate() throws Exception {
             byte[] mockResult = "mock filled excel document".getBytes();
-            when(excelService.fillTemplate(anyString(), any(), any())).thenReturn(mockResult);
+            when(excelService.fillTemplate(anyString(), any(), any(), any(), any()))
+                    .thenReturn(mockResult);
 
             ExcelFillRequest request = new ExcelFillRequest();
             request.setTemplateName("report-template.xlsx");
@@ -501,7 +502,8 @@ class DocControllerTest {
         @DisplayName("fileName 为 null 时应该使用默认文件名")
         void shouldUseDefaultFileNameWhenNull() throws Exception {
             byte[] mockResult = "mock filled excel document".getBytes();
-            when(excelService.fillTemplate(anyString(), any(), any())).thenReturn(mockResult);
+            when(excelService.fillTemplate(anyString(), any(), any(), any(), any()))
+                    .thenReturn(mockResult);
 
             ExcelFillRequest request = new ExcelFillRequest();
             request.setTemplateName("report-template.xlsx");
@@ -522,7 +524,8 @@ class DocControllerTest {
         @Test
         @DisplayName("生成空文档时应该返回 500")
         void shouldReturn500WhenDocumentIsEmpty() throws Exception {
-            when(excelService.fillTemplate(anyString(), any(), any())).thenReturn(new byte[0]);
+            when(excelService.fillTemplate(anyString(), any(), any(), any(), any()))
+                    .thenReturn(new byte[0]);
 
             ExcelFillRequest request = new ExcelFillRequest();
             request.setTemplateName("report-template.xlsx");

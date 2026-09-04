@@ -6,6 +6,7 @@ import io.github.marssea.docgen.config.DocGenProperties;
 import io.github.marssea.docgen.exception.InvalidImagePayloadException;
 import io.github.marssea.docgen.exception.TemplateNotFoundException;
 import io.github.marssea.docgen.util.ImagePayloadConverter;
+import io.github.marssea.docgen.util.QrCodePayloadConverter;
 import java.io.ByteArrayInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -14,6 +15,7 @@ import java.util.*;
 import org.apache.poi.xwpf.usermodel.BreakType;
 import org.apache.poi.xwpf.usermodel.XWPFDocument;
 import org.apache.poi.xwpf.usermodel.XWPFParagraph;
+import org.apache.poi.xwpf.usermodel.XWPFPictureData;
 import org.apache.poi.xwpf.usermodel.XWPFRun;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.io.TempDir;
@@ -31,13 +33,15 @@ class WordServiceTest {
     private WordService wordService;
     private DocGenProperties properties;
     private ImagePayloadConverter imagePayloadConverter;
+    private QrCodePayloadConverter qrCodePayloadConverter;
 
     @BeforeEach
     void setUp() {
         properties = new DocGenProperties();
         properties.setTemplatePath(tempDir.toString());
         imagePayloadConverter = new ImagePayloadConverter();
-        wordService = new WordService(properties, imagePayloadConverter);
+        qrCodePayloadConverter = new QrCodePayloadConverter();
+        wordService = new WordService(properties, imagePayloadConverter, qrCodePayloadConverter);
     }
 
     @Nested
@@ -218,6 +222,164 @@ class WordServiceTest {
             assertThrows(
                     InvalidImagePayloadException.class,
                     () -> wordService.generateWord("mixed-template.docx", data));
+        }
+    }
+
+    @Nested
+    @DisplayName("generateWord 二维码载荷测试")
+    class GenerateWordQrCodePayloadTest {
+
+        @Test
+        @DisplayName("二维码载荷应渲染为文档内嵌 PNG 图片")
+        void shouldRenderQrCodePayloadAsEmbeddedPngPicture() throws Exception {
+            Path templatePath = tempDir.resolve("qr-template.docx");
+            createTagTemplate(templatePath, "Scan: {{@qr}}");
+
+            Map<String, Object> data = new HashMap<>();
+            data.put("qr", Map.of("type", "qrcode", "content", "https://example.com/order/123"));
+
+            byte[] result = wordService.generateWord("qr-template.docx", data);
+
+            List<byte[]> pngPictures = extractEmbeddedPictures(result);
+            assertEquals(1, pngPictures.size(), "文档应恰好嵌入一张图片");
+            assertPngMagicBytes(pngPictures.get(0));
+        }
+
+        @Test
+        @DisplayName("二维码载荷支持自定义宽高")
+        void shouldRenderQrCodePayloadWithCustomSize() throws Exception {
+            Path templatePath = tempDir.resolve("qr-size-template.docx");
+            createTagTemplate(templatePath, "Scan: {{@qr}}");
+
+            Map<String, Object> data = new HashMap<>();
+            data.put(
+                    "qr",
+                    Map.of(
+                            "type",
+                            "qrcode",
+                            "content",
+                            "https://example.com/custom-size",
+                            "width",
+                            300,
+                            "height",
+                            300));
+
+            byte[] result =
+                    assertDoesNotThrow(
+                            () -> wordService.generateWord("qr-size-template.docx", data));
+
+            List<byte[]> pngPictures = extractEmbeddedPictures(result);
+            assertEquals(1, pngPictures.size());
+            assertPngMagicBytes(pngPictures.get(0));
+        }
+
+        @Test
+        @DisplayName("缺少 content 的二维码载荷应抛出 InvalidImagePayloadException")
+        void shouldThrowExceptionForMissingContent() throws Exception {
+            Path templatePath = tempDir.resolve("qr-missing-content-template.docx");
+            createTagTemplate(templatePath, "Scan: {{@qr}}");
+
+            Map<String, Object> data = new HashMap<>();
+            data.put("qr", Map.of("type", "qrcode"));
+
+            InvalidImagePayloadException ex =
+                    assertThrows(
+                            InvalidImagePayloadException.class,
+                            () ->
+                                    wordService.generateWord(
+                                            "qr-missing-content-template.docx", data));
+            assertTrue(ex.getMessage().contains("content"));
+        }
+
+        @Test
+        @DisplayName("尺寸越界的二维码载荷应抛出 InvalidImagePayloadException")
+        void shouldThrowExceptionForOutOfRangeQrCodeSize() throws Exception {
+            Path templatePath = tempDir.resolve("qr-bad-size-template.docx");
+            createTagTemplate(templatePath, "Scan: {{@qr}}");
+
+            Map<String, Object> data = new HashMap<>();
+            data.put(
+                    "qr",
+                    Map.of("type", "qrcode", "content", "https://example.com", "width", 5000));
+
+            InvalidImagePayloadException ex =
+                    assertThrows(
+                            InvalidImagePayloadException.class,
+                            () -> wordService.generateWord("qr-bad-size-template.docx", data));
+            assertTrue(ex.getMessage().contains("width"));
+        }
+
+        @Test
+        @DisplayName("表格循环行内的二维码载荷应正常渲染")
+        void shouldRenderQrCodePayloadInsideLoopTableRow() throws Exception {
+            // 循环数据行内使用 [] gramer 解析，图片/二维码需用 [@qr] 图片标签写法，
+            // [qr] 文本标签会把 PictureRenderData 渲染成字符串
+            Path templatePath = tempDir.resolve("qr-loop-template.docx");
+            createLoopTableQrTemplate(templatePath);
+
+            Map<String, Object> data = new HashMap<>();
+            data.put(
+                    "items",
+                    List.of(
+                            Map.of(
+                                    "name",
+                                    "Product A",
+                                    "qr",
+                                    Map.of("type", "qrcode", "content", "https://example.com/a")),
+                            Map.of(
+                                    "name",
+                                    "Product B",
+                                    "qr",
+                                    Map.of(
+                                            "type",
+                                            "qrcode",
+                                            "content",
+                                            "https://example.com/b",
+                                            "width",
+                                            200,
+                                            "height",
+                                            200))));
+
+            byte[] result =
+                    assertDoesNotThrow(
+                            () -> wordService.generateWord("qr-loop-template.docx", data));
+
+            // 每行一个二维码，共 2 张内嵌 PNG
+            List<byte[]> pngPictures = extractEmbeddedPictures(result);
+            assertEquals(2, pngPictures.size());
+            pngPictures.forEach(GenerateWordQrCodePayloadTest.this::assertPngMagicBytes);
+        }
+
+        /** 创建包含图片标签循环行的 Word 模板（表头行 + {{items}} 触发行 + [name]/[@qr] 数据行） */
+        private void createLoopTableQrTemplate(Path path) throws IOException {
+            try (XWPFDocument document = new XWPFDocument()) {
+                var table = document.createTable(3, 2);
+                table.getRow(0).getCell(0).setText("Name");
+                table.getRow(0).getCell(1).setText("QR Code");
+                table.getRow(1).getCell(0).setText("{{items}}");
+                table.getRow(2).getCell(0).setText("[name]");
+                table.getRow(2).getCell(1).setText("[@qr]");
+                try (FileOutputStream out = new FileOutputStream(path.toFile())) {
+                    document.write(out);
+                }
+            }
+        }
+
+        /** 提取生成文档中所有内嵌图片的字节 */
+        private List<byte[]> extractEmbeddedPictures(byte[] document) throws IOException {
+            try (XWPFDocument doc = new XWPFDocument(new ByteArrayInputStream(document))) {
+                return doc.getAllPictures().stream().map(XWPFPictureData::getData).toList();
+            }
+        }
+
+        /** 验证图片字节为 PNG 魔术字节 */
+        private void assertPngMagicBytes(byte[] bytes) {
+            assertNotNull(bytes);
+            assertTrue(bytes.length > 8, "PNG 图片字节长度应大于文件头");
+            assertEquals((byte) 0x89, bytes[0]);
+            assertEquals((byte) 0x50, bytes[1]);
+            assertEquals((byte) 0x4E, bytes[2]);
+            assertEquals((byte) 0x47, bytes[3]);
         }
     }
 
@@ -557,6 +719,207 @@ class WordServiceTest {
                                     wordService.generateBatch(
                                             "batch-format-template.docx", dataList));
             assertTrue(ex.getMessage().contains("not supported"));
+        }
+    }
+
+    @Nested
+    @DisplayName("表格循环与健壮性测试")
+    class LoopTableAndRobustnessTest {
+
+        @Test
+        @DisplayName("循环表格有数据时应渲染所有行且清除占位标签")
+        void shouldRenderLoopTableWithData() throws Exception {
+            Path templatePath = tempDir.resolve("loop-template.docx");
+            createLoopTableWordTemplate(templatePath, "items", "name", "price");
+
+            List<Map<String, Object>> items = new ArrayList<>();
+            items.add(Map.of("name", "苹果", "price", 10));
+            items.add(Map.of("name", "香蕉", "price", 20));
+            Map<String, Object> data = new HashMap<>();
+            data.put("items", items);
+
+            byte[] result = wordService.generateWord("loop-template.docx", data);
+            String text = extractAllText(result);
+
+            assertTrue(text.contains("苹果"));
+            assertTrue(text.contains("香蕉"));
+            assertTrue(text.contains("10"));
+            assertTrue(text.contains("20"));
+            assertFalse(text.contains("[name]"), "占位标签 [name] 应被替换");
+            assertFalse(text.contains("[price]"), "占位标签 [price] 应被替换");
+            assertFalse(text.contains("{{items}}"), "循环触发标签应被清除");
+        }
+
+        @Test
+        @DisplayName("循环字段缺失时应删除循环行且不残留占位标签")
+        void shouldRemoveLoopRowWhenDataMissing() throws Exception {
+            Path templatePath = tempDir.resolve("loop-missing-template.docx");
+            createLoopTableWordTemplate(templatePath, "items", "name", "price");
+
+            // data 中不包含 items
+            Map<String, Object> data = new HashMap<>();
+            data.put("title", "报告");
+
+            byte[] result = wordService.generateWord("loop-missing-template.docx", data);
+            String text = extractAllText(result);
+
+            assertFalse(text.contains("[name]"), "缺失循环数据时不应残留 [name]");
+            assertFalse(text.contains("[price]"), "缺失循环数据时不应残留 [price]");
+            assertFalse(text.contains("{{items}}"), "缺失循环数据时不应残留 {{items}}");
+        }
+
+        @Test
+        @DisplayName("循环字段为空列表时应删除循环行")
+        void shouldRemoveLoopRowWhenDataEmpty() throws Exception {
+            Path templatePath = tempDir.resolve("loop-empty-template.docx");
+            createLoopTableWordTemplate(templatePath, "items", "name");
+
+            Map<String, Object> data = new HashMap<>();
+            data.put("items", new ArrayList<>());
+
+            byte[] result = wordService.generateWord("loop-empty-template.docx", data);
+            String text = extractAllText(result);
+
+            assertFalse(text.contains("[name]"));
+            assertFalse(text.contains("{{items}}"));
+        }
+
+        @Test
+        @DisplayName("应支持中文命名的循环字段并在缺失时清理")
+        void shouldSupportChineseLoopFieldName() throws Exception {
+            Path templatePath = tempDir.resolve("loop-cn-template.docx");
+            createLoopTableWordTemplate(templatePath, "物品", "名称", "数量");
+
+            // 缺失数据：依赖中文标签正则识别循环字段并补空列表
+            Map<String, Object> data = new HashMap<>();
+
+            byte[] result = wordService.generateWord("loop-cn-template.docx", data);
+            String text = extractAllText(result);
+
+            assertFalse(text.contains("[名称]"), "中文循环字段缺失时不应残留 [名称]");
+            assertFalse(text.contains("[数量]"));
+            assertFalse(text.contains("{{物品}}"));
+        }
+
+        @Test
+        @DisplayName("循环项缺少某字段时应渲染为空而非中断（非严格 SpEL）")
+        void shouldRenderLoopItemWithMissingField() throws Exception {
+            Path templatePath = tempDir.resolve("loop-partial-template.docx");
+            createLoopTableWordTemplate(templatePath, "items", "name", "price");
+
+            List<Map<String, Object>> items = new ArrayList<>();
+            Map<String, Object> item = new HashMap<>();
+            item.put("name", "只有名字"); // 缺少 price
+            items.add(item);
+            Map<String, Object> data = new HashMap<>();
+            data.put("items", items);
+
+            byte[] result =
+                    assertDoesNotThrow(
+                            () -> wordService.generateWord("loop-partial-template.docx", data));
+            String text = extractAllText(result);
+
+            assertTrue(text.contains("只有名字"));
+            assertFalse(text.contains("[name]"));
+            assertFalse(text.contains("[price]"));
+        }
+
+        @Test
+        @DisplayName("模板变量缺失时应渲染为空而非抛异常（非严格 SpEL）")
+        void shouldRenderEmptyForMissingVariable() throws Exception {
+            Path templatePath = tempDir.resolve("missing-var-template.docx");
+            createTagTemplate(templatePath, "Value: {{missing}}");
+
+            Map<String, Object> data = new HashMap<>();
+            data.put("other", "x");
+
+            byte[] result =
+                    assertDoesNotThrow(
+                            () -> wordService.generateWord("missing-var-template.docx", data));
+            String text = extractAllText(result);
+
+            assertTrue(text.contains("Value:"));
+            assertFalse(text.contains("{{missing}}"), "缺失变量应被清空而非保留标签");
+        }
+
+        @Test
+        @DisplayName("对 null 做级联取值时应渲染为空而非抛异常")
+        void shouldRenderEmptyForNullNestedNavigation() throws Exception {
+            Path templatePath = tempDir.resolve("nested-null-template.docx");
+            createTagTemplate(templatePath, "Author: {{user.name}}");
+
+            Map<String, Object> data = new HashMap<>();
+            data.put("user", null);
+
+            byte[] result =
+                    assertDoesNotThrow(
+                            () -> wordService.generateWord("nested-null-template.docx", data));
+            String text = extractAllText(result);
+
+            assertTrue(text.contains("Author:"));
+            assertFalse(text.contains("{{user.name}}"));
+        }
+
+        @Test
+        @DisplayName("data 为 null 时应正常生成文档")
+        void shouldGenerateWordWithNullData() throws Exception {
+            Path templatePath = tempDir.resolve("null-data-template.docx");
+            createTagTemplate(templatePath, "Title: {{title}}");
+
+            byte[] result =
+                    assertDoesNotThrow(
+                            () -> wordService.generateWord("null-data-template.docx", null));
+            assertNotNull(result);
+            assertTrue(result.length > 0);
+            try (XWPFDocument doc = new XWPFDocument(new ByteArrayInputStream(result))) {
+                assertNotNull(doc);
+            }
+        }
+    }
+
+    /** 创建包含表格循环结构的 Word 模板（表头行 + {{loopTag}} 触发行 + [field] 数据行） */
+    private void createLoopTableWordTemplate(Path path, String loopTag, String... fields)
+            throws IOException {
+        try (XWPFDocument document = new XWPFDocument()) {
+            int cols = fields.length;
+            var table = document.createTable(3, cols);
+            // Row 0: 表头
+            for (int c = 0; c < cols; c++) {
+                table.getRow(0).getCell(c).setText("H" + c);
+            }
+            // Row 1: 循环触发标签行 {{loopTag}}（poi-tl 默认策略要求标签在数据行的上一行）
+            table.getRow(1).getCell(0).setText("{{" + loopTag + "}}");
+            // Row 2: 数据模板行 [field]
+            for (int c = 0; c < cols; c++) {
+                table.getRow(2).getCell(c).setText("[" + fields[c] + "]");
+            }
+            try (FileOutputStream out = new FileOutputStream(path.toFile())) {
+                document.write(out);
+            }
+        }
+    }
+
+    /** 创建仅含单个段落文本（可包含占位标签）的 Word 模板 */
+    private void createTagTemplate(Path path, String content) throws IOException {
+        try (XWPFDocument document = new XWPFDocument()) {
+            XWPFParagraph paragraph = document.createParagraph();
+            paragraph.createRun().setText(content);
+            try (FileOutputStream out = new FileOutputStream(path.toFile())) {
+                document.write(out);
+            }
+        }
+    }
+
+    /** 提取文档所有段落与表格单元格文本，用于内容断言 */
+    private String extractAllText(byte[] docBytes) throws IOException {
+        try (XWPFDocument doc = new XWPFDocument(new ByteArrayInputStream(docBytes))) {
+            StringBuilder sb = new StringBuilder();
+            doc.getParagraphs().forEach(p -> sb.append(p.getText()).append('\n'));
+            doc.getTables().stream()
+                    .flatMap(t -> t.getRows().stream())
+                    .flatMap(r -> r.getTableCells().stream())
+                    .forEach(c -> sb.append(c.getText()).append('\n'));
+            return sb.toString();
         }
     }
 

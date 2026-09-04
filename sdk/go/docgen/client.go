@@ -63,6 +63,10 @@ type ExcelFillRequest struct {
 	ListData map[string][]map[string]any `json:"listData,omitempty"`
 	// FileName 自定义输出文件名（不含扩展名，可选）
 	FileName string `json:"fileName,omitempty"`
+	// SheetName 指定填充的工作表名称（可选，与 SheetNo 同时指定时 SheetNo 优先）
+	SheetName string `json:"sheetName,omitempty"`
+	// SheetNo 指定填充的工作表索引（从 0 开始，可选）
+	SheetNo *int `json:"sheetNo,omitempty"`
 }
 
 // WordBatchRequest 批量 Word 生成请求参数
@@ -116,6 +120,39 @@ func ImageWithSize(url string, width, height int) map[string]any {
 		"url":    url,
 		"width":  width,
 		"height": height,
+	}
+}
+
+// QrCode 构造二维码载荷，用于 Word 模板中的二维码生成（{{@qrKey}} 语法）
+//
+// 服务端基于二维码内容本地生成 PNG 图片并嵌入文档。
+// content: 二维码编码内容（必填，UTF-8 编码，最长 2000 字符）
+// 返回的 map 可直接作为 data 中的值传入 GenerateWord 等方法
+//
+// 使用示例:
+//
+//	data := map[string]any{
+//	    "title": "入库单",
+//	    "qr":    docgen.QrCode("https://example.com/order/123"),
+//	}
+func QrCode(content string) map[string]any {
+	return map[string]any{
+		"type":    "qrcode",
+		"content": content,
+	}
+}
+
+// QrCodeWithSize 构造带自定义尺寸的二维码载荷
+//
+// content: 二维码编码内容（必填）
+// width: 输出图片宽度（像素，50–2000）
+// height: 输出图片高度（像素，50–2000）
+func QrCodeWithSize(content string, width, height int) map[string]any {
+	return map[string]any{
+		"type":    "qrcode",
+		"content": content,
+		"width":   width,
+		"height":  height,
 	}
 }
 

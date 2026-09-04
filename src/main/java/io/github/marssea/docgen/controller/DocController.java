@@ -114,8 +114,8 @@ public class DocController {
                 .header(
                         HttpHeaders.CONTENT_DISPOSITION,
                         "attachment; filename=\""
-                                + fileName
-                                + ".docx\"; filename*=UTF-8''"
+                                + encodedFileName
+                                + "\"; filename*=UTF-8''"
                                 + encodedFileName)
                 .contentLength(bytes.length)
                 .body(bytes);
@@ -191,8 +191,8 @@ public class DocController {
                 .header(
                         HttpHeaders.CONTENT_DISPOSITION,
                         "attachment; filename=\""
-                                + fileName
-                                + ".docx\"; filename*=UTF-8''"
+                                + encodedFileName
+                                + "\"; filename*=UTF-8''"
                                 + encodedFileName)
                 .contentLength(bytes.length)
                 .body(bytes);
@@ -264,8 +264,8 @@ public class DocController {
                 .header(
                         HttpHeaders.CONTENT_DISPOSITION,
                         "attachment; filename=\""
-                                + fileName
-                                + ".xlsx\"; filename*=UTF-8''"
+                                + encodedFileName
+                                + "\"; filename*=UTF-8''"
                                 + encodedFileName)
                 .contentLength(bytes.length)
                 .body(bytes);
@@ -304,13 +304,19 @@ public class DocController {
     @PostMapping("/excel/fill")
     public ResponseEntity<byte[]> fillExcelTemplate(@Valid @RequestBody ExcelFillRequest request) {
         log.info(
-                "Received excel fill request, template: {}, fileName: {}",
+                "Received excel fill request, template: {}, fileName: {}, sheetNo: {}, sheetName: {}",
                 request.getTemplateName(),
-                request.getFileName());
+                request.getFileName(),
+                request.getSheetNo(),
+                request.getSheetName());
 
         byte[] bytes =
                 excelService.fillTemplate(
-                        request.getTemplateName(), request.getData(), request.getListData());
+                        request.getTemplateName(),
+                        request.getData(),
+                        request.getListData(),
+                        request.getSheetNo(),
+                        request.getSheetName());
 
         if (bytes == null || bytes.length == 0) {
             throw new IllegalStateException("Filled excel document is empty");
@@ -340,8 +346,8 @@ public class DocController {
                 .header(
                         HttpHeaders.CONTENT_DISPOSITION,
                         "attachment; filename=\""
-                                + fileName
-                                + ".xlsx\"; filename*=UTF-8''"
+                                + encodedFileName
+                                + "\"; filename*=UTF-8''"
                                 + encodedFileName)
                 .contentLength(bytes.length)
                 .body(bytes);

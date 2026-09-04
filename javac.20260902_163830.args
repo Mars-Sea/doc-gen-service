@@ -1,0 +1,8 @@
+-encoding
+UTF-8
+-nowarn
+-cp
+C:/tmp/wordrepro/cp.txt
+-d
+C:/tmp/build/classes
+@C:/tmp/build/main.txt

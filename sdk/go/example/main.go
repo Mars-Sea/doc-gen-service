@@ -22,7 +22,10 @@ func main() {
 	// 示例3: 带图片的文档
 	imageExample(client)
 
-	// 示例4: 自定义文件名（支持中文）
+	// 示例4: 带二维码的文档
+	qrCodeExample(client)
+
+	// 示例5: 自定义文件名（支持中文）
 	customFileNameExample(client)
 }
 
@@ -105,9 +108,35 @@ func imageExample(client *docgen.Client) {
 	fmt.Println("文档已保存: image_doc.docx")
 }
 
+// qrCodeExample 带二维码插入的文档示例
+func qrCodeExample(client *docgen.Client) {
+	fmt.Println("\n=== 示例4: 二维码插入 ===")
+
+	data := map[string]any{
+		"title":   "入库单",
+		"date":    "2025-01-01",
+		"qr":      docgen.QrCode("https://example.com/order/123"),
+		"qrLarge": docgen.QrCodeWithSize("https://example.com/order/456", 300, 300),
+	}
+
+	doc, err := client.GenerateWord("qr-template.docx", data, "qr_doc")
+	if err != nil {
+		log.Printf("生成文档失败: %v\n", err)
+		return
+	}
+
+	err = os.WriteFile("qr_doc.docx", doc, 0644)
+	if err != nil {
+		log.Printf("保存文件失败: %v\n", err)
+		return
+	}
+
+	fmt.Println("文档已保存: qr_doc.docx")
+}
+
 // customFileNameExample 自定义中文文件名示例
 func customFileNameExample(client *docgen.Client) {
-	fmt.Println("\n=== 示例3: 中文文件名 ===")
+	fmt.Println("\n=== 示例5: 中文文件名 ===")
 
 	data := map[string]any{
 		"title": "年度报告",
