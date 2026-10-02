@@ -7,20 +7,19 @@ import com.deepoove.poi.render.compute.SpELRenderDataCompute;
 import com.deepoove.poi.template.ElementTemplate;
 import com.deepoove.poi.template.run.RunTemplate;
 import com.deepoove.poi.xwpf.NiceXWPFDocument;
-import io.github.marssea.docgen.config.DocGenProperties;
 import io.github.marssea.docgen.exception.TemplateNotFoundException;
+import io.github.marssea.docgen.payload.PayloadWalker;
+import io.github.marssea.docgen.template.TemplateName;
+import io.github.marssea.docgen.template.TemplateName.TemplateKind;
+import io.github.marssea.docgen.template.TemplateRepository;
 import io.github.marssea.docgen.util.ImagePayloadConverter;
 import io.github.marssea.docgen.util.QrCodePayloadConverter;
-import io.github.marssea.docgen.util.TemplateValidationUtil;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -61,7 +60,7 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class WordService {
 
-    private final DocGenProperties properties;
+    private final TemplateRepository templateRepository;
     private final ImagePayloadConverter imagePayloadConverter;
     private final QrCodePayloadConverter qrCodePayloadConverter;
 
@@ -96,21 +95,10 @@ public class WordService {
      * @throws IOException 文件读取或写入异常
      */
     public byte[] generateWord(String templateName, Map<String, Object> data) throws IOException {
-        // 安全校验：防止路径遍历攻击，验证扩展名
-        TemplateValidationUtil.validateWordTemplateExtension(templateName);
+        // 安全校验：命名规则与存在性检查统一走 TemplateRepository，Word 侧不再自行拼接模板路径
+        File templateFile = templateRepository.locate(parseTemplateName(templateName));
 
-        // 构建模板文件的完整路径
-        Path templatePath = Paths.get(properties.getTemplatePath(), templateName);
-        File templateFile = templatePath.toFile();
-
-        // 校验模板文件是否存在
-        if (!templateFile.exists()) {
-            log.error("Template file not found at: {}", templatePath);
-            throw new TemplateNotFoundException(
-                    templateName, "Template not found at: " + templatePath);
-        }
-
-        log.info("Generating word document using template: {}", templatePath);
+        log.info("Generating word document using template: {}", templateFile.getPath());
 
         // 预处理图片载荷：将结构化图片对象转换为 PictureRenderData
         Map<String, Object> processedData = preprocessImagePayloads(data);
@@ -150,27 +138,16 @@ public class WordService {
      */
     public byte[] generateBatch(String templateName, List<Map<String, Object>> dataList)
             throws IOException {
-        // 安全校验：防止路径遍历攻击，验证扩展名
-        TemplateValidationUtil.validateWordTemplateExtension(templateName);
-
         if (dataList == null || dataList.isEmpty()) {
             throw new IllegalArgumentException("Data list cannot be null or empty");
         }
 
-        // 构建模板文件的完整路径
-        Path templatePath = Paths.get(properties.getTemplatePath(), templateName);
-        File templateFile = templatePath.toFile();
-
-        // 校验模板文件是否存在
-        if (!templateFile.exists()) {
-            log.error("Template file not found at: {}", templatePath);
-            throw new TemplateNotFoundException(
-                    templateName, "Template not found at: " + templatePath);
-        }
+        // 安全校验：命名规则与存在性检查统一走 TemplateRepository，Word 侧不再自行拼接模板路径
+        File templateFile = templateRepository.locate(parseTemplateName(templateName));
 
         log.info(
                 "Generating batch word document using template: {}, data count: {}",
-                templatePath,
+                templateFile.getPath(),
                 dataList.size());
 
         NiceXWPFDocument mainDoc = null;
@@ -305,66 +282,31 @@ public class WordService {
     /**
      * 预处理图片与二维码载荷
      *
-     * <p>遍历数据（含嵌套 Map 与集合），检测结构化图片对象（包含 {@code type: "image"} 字段） 与二维码对象（包含 {@code type: "qrcode"}
-     * 字段），分别将其转换为 poi-tl 的 {@code PictureRenderData}。其余字段保持不变。
+     * <p>遍历由 {@link PayloadWalker} 负责（嵌套 Map、集合、数组三类容器），本模块只在叶子上判定载荷， 并包装成 poi-tl 的 {@code
+     * PictureRenderData}。其余字段保持不变。
      *
      * @param data 原始渲染数据
      * @return 预处理后的渲染数据（图片/二维码字段已转换为 PictureRenderData）
      */
     private Map<String, Object> preprocessImagePayloads(Map<String, Object> data) {
-        // data 为 null 时返回空 Map（而非 null），避免 null 模型进入 poi-tl render()，
-        // 同时保证后续 ensureLoopData 能正常为循环字段补入空列表。
-        Map<String, Object> processed = new HashMap<>();
-        if (data == null) {
-            return processed;
-        }
-
-        data.forEach((key, value) -> processed.put(key, convertImagePayload(key, value)));
-        return processed;
-    }
-
-    /**
-     * 递归转换值中的图片与二维码载荷
-     *
-     * <p>除顶层字段外，还需递归进入嵌套 Map 与集合内部：表格循环行内的图片载荷（如 {@code items[0].logo}）位于集合元素之中，若只扫描顶层，会被 poi-tl
-     * 原样渲染成 {@code Map.toString()} 形式的字符串。
-     *
-     * @param field 字段路径（用于日志与异常提示）
-     * @param value 待转换的值
-     * @return 转换后的值；非图片/二维码载荷且无可递归结构时原样返回
-     */
-    private Object convertImagePayload(String field, Object value) {
-        if (qrCodePayloadConverter.isQrCodePayload(value)) {
-            @SuppressWarnings("unchecked")
-            Map<String, Object> payload = (Map<String, Object>) value;
-            log.debug("Converting qr code payload for field: {}", field);
-            return qrCodePayloadConverter.convert(field, payload);
-        }
-        if (imagePayloadConverter.isImagePayload(value)) {
-            @SuppressWarnings("unchecked")
-            Map<String, Object> payload = (Map<String, Object>) value;
-            log.debug("Converting image payload for field: {}", field);
-            return imagePayloadConverter.convert(field, payload);
-        }
-        if (value instanceof Map<?, ?> nestedMap) {
-            Map<String, Object> converted = new HashMap<>();
-            nestedMap.forEach(
-                    (key, nested) ->
-                            converted.put(
-                                    String.valueOf(key),
-                                    convertImagePayload(field + "." + key, nested)));
-            return converted;
-        }
-        if (value instanceof Iterable<?> iterable) {
-            List<Object> converted = new ArrayList<>();
-            int index = 0;
-            for (Object element : iterable) {
-                converted.add(convertImagePayload(field + "[" + index + "]", element));
-                index++;
-            }
-            return converted;
-        }
-        return value;
+        return PayloadWalker.walk(
+                data,
+                (field, value) -> {
+                    if (qrCodePayloadConverter.isQrCodePayload(value)) {
+                        @SuppressWarnings("unchecked")
+                        Map<String, Object> payload = (Map<String, Object>) value;
+                        log.debug("Converting qr code payload for field: {}", field);
+                        return qrCodePayloadConverter.convert(field, payload);
+                    }
+                    if (imagePayloadConverter.isImagePayload(value)) {
+                        @SuppressWarnings("unchecked")
+                        Map<String, Object> payload = (Map<String, Object>) value;
+                        log.debug("Converting image payload for field: {}", field);
+                        return imagePayloadConverter.convert(field, payload);
+                    }
+                    // 未认出时原样返回，遍历器据此继续向下
+                    return value;
+                });
     }
 
     /**
@@ -533,6 +475,15 @@ public class WordService {
             }
             return paragraph.getBody() instanceof XWPFTableCell cell ? cell : null;
         }
+    }
+
+    /**
+     * 解析调用方传入的模板名
+     *
+     * <p>命名规则（合法字符、必须为 .docx）由 {@link TemplateName} 统一判定，此处只声明本模块要的是 Word 模板。
+     */
+    private static TemplateName parseTemplateName(String templateName) {
+        return TemplateName.parse(templateName, TemplateKind.WORD);
     }
 
     /** 取表达式首个路径段（如 {@code items}、{@code items.name} {@code ->} {@code items}） */

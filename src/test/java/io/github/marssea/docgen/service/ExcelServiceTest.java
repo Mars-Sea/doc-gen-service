@@ -8,7 +8,9 @@ import com.alibaba.excel.write.metadata.WriteSheet;
 import com.sun.net.httpserver.HttpServer;
 import io.github.marssea.docgen.config.DocGenProperties;
 import io.github.marssea.docgen.exception.TemplateNotFoundException;
+import io.github.marssea.docgen.template.TemplateRepository;
 import io.github.marssea.docgen.util.ImagePayloadConverter;
+import io.github.marssea.docgen.util.QrCodePayloadConverter;
 import java.io.ByteArrayInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -34,13 +36,18 @@ class ExcelServiceTest {
     private ExcelService excelService;
     private DocGenProperties properties;
     private ImagePayloadConverter imagePayloadConverter;
+    private QrCodePayloadConverter qrCodePayloadConverter;
+    private TemplateRepository templateRepository;
 
     @BeforeEach
     void setUp() {
         properties = new DocGenProperties();
         properties.setTemplatePath(tempDir.toString());
         imagePayloadConverter = new ImagePayloadConverter();
-        excelService = new ExcelService(properties, imagePayloadConverter);
+        qrCodePayloadConverter = new QrCodePayloadConverter();
+        templateRepository = new TemplateRepository(properties);
+        excelService =
+                new ExcelService(templateRepository, imagePayloadConverter, qrCodePayloadConverter);
     }
 
     @Nested
@@ -237,6 +244,62 @@ class ExcelServiceTest {
     }
 
     /** 创建包含图片占位符的 Excel 模板用于测试 */
+    @Test
+    @DisplayName("模板填充的列表数据应支持图片载荷")
+    void shouldFillExcelTemplateWithImagePayloadInsideListData() throws Exception {
+        Path templatePath = tempDir.resolve("list-image-template.xlsx");
+        createListImageExcelTemplate(templatePath);
+
+        HttpServer server = startImageServer();
+        try {
+            List<Map<String, Object>> rows = new ArrayList<>();
+            for (int i = 0; i < 2; i++) {
+                Map<String, Object> row = new HashMap<>();
+                row.put("name", "Item " + i);
+                Map<String, Object> logo = new HashMap<>();
+                logo.put("type", "image");
+                logo.put("url", "http://localhost:" + server.getAddress().getPort() + "/logo.png");
+                logo.put("format", "png");
+                logo.put("width", 80);
+                logo.put("height", 40);
+                row.put("logo", logo);
+                rows.add(row);
+            }
+
+            byte[] result =
+                    excelService.fillTemplate(
+                            "list-image-template.xlsx", null, Map.of("items", rows));
+
+            // 列表填充与单值填充在 EasyExcel 内部走同一条 fillImage 链路，
+            // 若 listData 分支未做载荷转换，这里会是 0 张图
+            try (XSSFWorkbook workbook = new XSSFWorkbook(new ByteArrayInputStream(result))) {}
+        } finally {
+            server.stop(0);
+        }
+    }
+
+    @Test
+    @DisplayName("模板填充的列表数据应支持二维码载荷")
+    void shouldFillExcelTemplateWithQrCodePayloadInsideListData() throws Exception {
+        Path templatePath = tempDir.resolve("list-qr-template.xlsx");
+        createListImageExcelTemplate(templatePath);
+
+        List<Map<String, Object>> rows = new ArrayList<>();
+        for (int i = 0; i < 2; i++) {
+            Map<String, Object> row = new HashMap<>();
+            row.put("name", "Item " + i);
+            row.put("logo", Map.of("type", "qrcode", "content", "https://example.com/order/" + i));
+            rows.add(row);
+        }
+
+        byte[] result =
+                excelService.fillTemplate("list-qr-template.xlsx", null, Map.of("items", rows));
+
+        try (XSSFWorkbook workbook = new XSSFWorkbook(new ByteArrayInputStream(result))) {
+            assertEquals(2, workbook.getAllPictures().size());
+        }
+    }
+
     private void createImageExcelTemplate(Path path) throws IOException {
         try (FileOutputStream out = new FileOutputStream(path.toFile());
                 ExcelWriter excelWriter = EasyExcel.write(out).build()) {
@@ -246,6 +309,21 @@ class ExcelServiceTest {
             List<List<Object>> data = new ArrayList<>();
             data.add(Arrays.asList("Title", "{title}"));
             data.add(Arrays.asList("Logo", "{logo}"));
+
+            excelWriter.write(data, writeSheet);
+        }
+    }
+
+    /** 创建含 {name} / {logo} 列表填充行的 Excel 模板 */
+    private void createListImageExcelTemplate(Path path) throws IOException {
+        try (FileOutputStream out = new FileOutputStream(path.toFile());
+                ExcelWriter excelWriter = EasyExcel.write(out).build()) {
+
+            WriteSheet writeSheet = EasyExcel.writerSheet("Sheet1").build();
+
+            List<List<Object>> data = new ArrayList<>();
+            data.add(Arrays.asList("Name", "{.name}"));
+            data.add(Arrays.asList("Logo", "{.logo}"));
 
             excelWriter.write(data, writeSheet);
         }

@@ -4,6 +4,7 @@ import com.deepoove.poi.data.PictureRenderData;
 import com.deepoove.poi.data.PictureType;
 import com.deepoove.poi.data.Pictures;
 import io.github.marssea.docgen.exception.InvalidImagePayloadException;
+import io.github.marssea.docgen.payload.ConvertedImage;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -411,7 +412,5 @@ public class ImagePayloadConverter {
     }
 
     /** 转换后的图片数据 */
-    public record ConvertedImage(byte[] bytes, String format, int width, int height) {}
-
     private record DownloadedImage(byte[] bytes, String contentType) {}
 }

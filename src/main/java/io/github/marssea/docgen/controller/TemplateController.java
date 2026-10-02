@@ -1,6 +1,9 @@
 package io.github.marssea.docgen.controller;
 
-import io.github.marssea.docgen.service.TemplateService;
+import io.github.marssea.docgen.template.TemplateName;
+import io.github.marssea.docgen.template.TemplateName.TemplateKind;
+import io.github.marssea.docgen.template.TemplateRepository;
+import io.github.marssea.docgen.template.TemplateWriter;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -34,7 +37,8 @@ import org.springframework.web.multipart.MultipartFile;
 @RequiredArgsConstructor
 public class TemplateController {
 
-    private final TemplateService templateService;
+    private final TemplateRepository templateRepository;
+    private final TemplateWriter templateWriter;
 
     /**
      * 上传模板文件
@@ -72,7 +76,7 @@ public class TemplateController {
                 file.getOriginalFilename(),
                 file.getSize());
 
-        String savedFilename = templateService.uploadTemplate(file);
+        String savedFilename = templateWriter.upload(file);
 
         return ResponseEntity.ok(
                 Map.of("success", true, "message", "模板上传成功", "fileName", savedFilename));
@@ -102,7 +106,7 @@ public class TemplateController {
     public ResponseEntity<Map<String, Object>> listTemplates() throws IOException {
         log.info("Received template list request");
 
-        List<String> templates = templateService.listTemplates();
+        List<String> templates = templateRepository.list();
 
         return ResponseEntity.ok(
                 Map.of("success", true, "count", templates.size(), "templates", templates));
@@ -139,7 +143,7 @@ public class TemplateController {
 
         log.info("Received template delete request, templateName: {}", templateName);
 
-        boolean deleted = templateService.deleteTemplate(templateName);
+        boolean deleted = templateWriter.delete(parseAnyKind(templateName));
 
         if (deleted) {
             return ResponseEntity.ok(
@@ -181,7 +185,7 @@ public class TemplateController {
 
         log.info("Received template download request, templateName: {}", templateName);
 
-        byte[] content = templateService.downloadTemplate(templateName);
+        byte[] content = templateRepository.read(parseAnyKind(templateName));
 
         // 根据文件扩展名设置 Content-Type
         String contentType =
@@ -194,5 +198,18 @@ public class TemplateController {
                 .header("Content-Disposition", "attachment; filename=\"" + templateName + "\"")
                 .contentLength(content.length)
                 .body(content);
+    }
+
+    /**
+     * 解析删除 / 下载入口的模板名
+     *
+     * <p>这两个端点对 Word 与 Excel 模板一视同仁，故按扩展名选择对应的合法类型， 命名规则仍由{@link TemplateName} 单份判定。
+     */
+    private static TemplateName parseAnyKind(String templateName) {
+        TemplateKind kind =
+                templateName.toLowerCase(java.util.Locale.ROOT).endsWith(".xlsx")
+                        ? TemplateKind.EXCEL
+                        : TemplateKind.WORD;
+        return TemplateName.parse(templateName, kind);
     }
 }

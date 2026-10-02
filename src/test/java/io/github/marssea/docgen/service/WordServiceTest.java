@@ -2,14 +2,17 @@ package io.github.marssea.docgen.service;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+import com.sun.net.httpserver.HttpServer;
 import io.github.marssea.docgen.config.DocGenProperties;
 import io.github.marssea.docgen.exception.InvalidImagePayloadException;
 import io.github.marssea.docgen.exception.TemplateNotFoundException;
+import io.github.marssea.docgen.template.TemplateRepository;
 import io.github.marssea.docgen.util.ImagePayloadConverter;
 import io.github.marssea.docgen.util.QrCodePayloadConverter;
 import java.io.ByteArrayInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.net.InetSocketAddress;
 import java.nio.file.Path;
 import java.util.*;
 import org.apache.poi.xwpf.usermodel.BreakType;
@@ -34,6 +37,7 @@ class WordServiceTest {
     private DocGenProperties properties;
     private ImagePayloadConverter imagePayloadConverter;
     private QrCodePayloadConverter qrCodePayloadConverter;
+    private TemplateRepository templateRepository;
 
     @BeforeEach
     void setUp() {
@@ -41,7 +45,9 @@ class WordServiceTest {
         properties.setTemplatePath(tempDir.toString());
         imagePayloadConverter = new ImagePayloadConverter();
         qrCodePayloadConverter = new QrCodePayloadConverter();
-        wordService = new WordService(properties, imagePayloadConverter, qrCodePayloadConverter);
+        templateRepository = new TemplateRepository(properties);
+        wordService =
+                new WordService(templateRepository, imagePayloadConverter, qrCodePayloadConverter);
     }
 
     @Nested
@@ -315,7 +321,7 @@ class WordServiceTest {
             // 循环数据行内使用 [] gramer 解析，图片/二维码需用 [@qr] 图片标签写法，
             // [qr] 文本标签会把 PictureRenderData 渲染成字符串
             Path templatePath = tempDir.resolve("qr-loop-template.docx");
-            createLoopTableQrTemplate(templatePath);
+            createLoopTableImageTemplate(templatePath, "qr");
 
             Map<String, Object> data = new HashMap<>();
             data.put(
@@ -350,15 +356,19 @@ class WordServiceTest {
             pngPictures.forEach(GenerateWordQrCodePayloadTest.this::assertPngMagicBytes);
         }
 
-        /** 创建包含图片标签循环行的 Word 模板（表头行 + {{items}} 触发行 + [name]/[@qr] 数据行） */
-        private void createLoopTableQrTemplate(Path path) throws IOException {
+        /**
+         * 创建包含图片标签循环行的 Word 模板（表头行 + {{items}} 触发行 + [name]/[@<tag>] 数据行）
+         *
+         * @param imageTag 图片标签字段名，须与渲染数据里的键一致；poi-tl 用 {@code [@field]} 语法声明该单元格是图片
+         */
+        private void createLoopTableImageTemplate(Path path, String imageTag) throws IOException {
             try (XWPFDocument document = new XWPFDocument()) {
                 var table = document.createTable(3, 2);
                 table.getRow(0).getCell(0).setText("Name");
-                table.getRow(0).getCell(1).setText("QR Code");
+                table.getRow(0).getCell(1).setText("Image");
                 table.getRow(1).getCell(0).setText("{{items}}");
                 table.getRow(2).getCell(0).setText("[name]");
-                table.getRow(2).getCell(1).setText("[@qr]");
+                table.getRow(2).getCell(1).setText("[@" + imageTag + "]");
                 try (FileOutputStream out = new FileOutputStream(path.toFile())) {
                     document.write(out);
                 }
@@ -380,6 +390,127 @@ class WordServiceTest {
             assertEquals((byte) 0x50, bytes[1]);
             assertEquals((byte) 0x4E, bytes[2]);
             assertEquals((byte) 0x47, bytes[3]);
+        }
+
+        @Test
+        @DisplayName("表格循环行内的图片载荷应正常渲染（List 容器）")
+        void shouldRenderImagePayloadInsideLoopTableRow() throws Exception {
+            Path templatePath = tempDir.resolve("image-loop-template.docx");
+            createLoopTableImageTemplate(templatePath, "logo");
+
+            HttpServer server = startPngServer();
+            try {
+                Map<String, Object> data = new HashMap<>();
+                data.put(
+                        "items",
+                        List.of(
+                                Map.of(
+                                        "name",
+                                        "Product A",
+                                        "logo",
+                                        Map.of(
+                                                "type",
+                                                "image",
+                                                "url",
+                                                serverUrl(server) + "/a.png")),
+                                Map.of(
+                                        "name",
+                                        "Product B",
+                                        "logo",
+                                        Map.of(
+                                                "type",
+                                                "image",
+                                                "url",
+                                                serverUrl(server) + "/b.png"))));
+
+                byte[] result =
+                        assertDoesNotThrow(
+                                () -> wordService.generateWord("image-loop-template.docx", data));
+
+                // 每行一张图片，共 2 张内嵌 PNG；若递归漏了集合容器，这里会得到 0 张
+                List<byte[]> pngPictures = extractEmbeddedPictures(result);
+                assertEquals(2, pngPictures.size());
+                pngPictures.forEach(this::assertPngMagicBytes);
+            } finally {
+                server.stop(0);
+            }
+        }
+
+        @Test
+        @DisplayName("表格循环行内的图片载荷应正常渲染（数组容器）")
+        void shouldRenderImagePayloadInsideArray() throws Exception {
+            Path templatePath = tempDir.resolve("image-array-template.docx");
+            createLoopTableImageTemplate(templatePath, "logo");
+
+            HttpServer server = startPngServer();
+            try {
+                Map<String, Object> data = new HashMap<>();
+                // 数组不实现 Iterable，是递归覆盖的一个独立分支
+                data.put(
+                        "items",
+                        new Object[] {
+                            Map.of(
+                                    "name",
+                                    "Product A",
+                                    "logo",
+                                    Map.of("type", "image", "url", serverUrl(server) + "/a.png")),
+                            Map.of(
+                                    "name",
+                                    "Product B",
+                                    "logo",
+                                    Map.of("type", "image", "url", serverUrl(server) + "/b.png"))
+                        });
+
+                byte[] result =
+                        assertDoesNotThrow(
+                                () -> wordService.generateWord("image-array-template.docx", data));
+
+                List<byte[]> pngPictures = extractEmbeddedPictures(result);
+                assertEquals(2, pngPictures.size());
+                pngPictures.forEach(this::assertPngMagicBytes);
+            } finally {
+                server.stop(0);
+            }
+        }
+
+        /**
+         * 启动按路径返回不同 PNG 的本地 HTTP 服务
+         *
+         * <p>两个路径返回的字节必须不同：POI 会按图片字节去重，相同字节的两张图只会在文档里留下一个 picture part。
+         */
+        private HttpServer startPngServer() throws IOException {
+            HttpServer server = HttpServer.create(new InetSocketAddress(0), 0);
+            server.createContext(
+                    "/",
+                    exchange -> {
+                        byte[] body =
+                                exchange.getRequestURI().getPath().endsWith("/a.png")
+                                        ? onePixelPng()
+                                        : onePixelPngVariant();
+                        exchange.sendResponseHeaders(200, body.length);
+                        try (java.io.OutputStream out = exchange.getResponseBody()) {
+                            out.write(body);
+                        }
+                    });
+            server.start();
+            return server;
+        }
+
+        private String serverUrl(HttpServer server) {
+            return "http://127.0.0.1:" + server.getAddress().getPort();
+        }
+
+        private byte[] onePixelPng() {
+            return Base64.getDecoder()
+                    .decode(
+                            "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGP4z8AAAAMBAQDJ/pLvAAAAAElFTkSuQmCC");
+        }
+
+        /** 与 {@link #onePixelPng()} 同为 1x1 但字节不同的 PNG，用于验证多张图片各自嵌入 */
+        private byte[] onePixelPngVariant() {
+            return Base64.getDecoder()
+                    .decode(
+                            "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGNgYPgPAAEDAQAIicLsAAAAAElFTkSuQmCC");
         }
     }
 

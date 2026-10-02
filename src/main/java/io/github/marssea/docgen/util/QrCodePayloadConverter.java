@@ -10,6 +10,7 @@ import com.google.zxing.common.BitMatrix;
 import com.google.zxing.qrcode.QRCodeWriter;
 import com.google.zxing.qrcode.decoder.ErrorCorrectionLevel;
 import io.github.marssea.docgen.exception.InvalidImagePayloadException;
+import io.github.marssea.docgen.payload.ConvertedImage;
 import java.io.ByteArrayOutputStream;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
@@ -51,6 +52,9 @@ public class QrCodePayloadConverter {
     /** 二维码载荷类型标识 */
     private static final String QRCODE_TYPE = "qrcode";
 
+    /** 输出图片格式：ZXing 固定产出 PNG */
+    private static final String PNG_FORMAT = "png";
+
     /** 默认图片宽度（像素） */
     private static final int DEFAULT_WIDTH = 150;
 
@@ -90,21 +94,32 @@ public class QrCodePayloadConverter {
     }
 
     /**
-     * 将二维码载荷转换为 poi-tl 的 {@link PictureRenderData}
+     * 将二维码载荷转换为通用图片结果
+     *
+     * <p>字节级出口：二维码由 ZXing 在服务端本地生成，没有 URL，无法走图片那条 HTTP 下载链路。 Excel 侧需要的是「字节 + 格式 + 尺寸」这一组事实再自行包装成
+     * {@code WriteCellData}，故与 {@code ImagePayloadConverter.convertToImage} 提供同类型出口。
      *
      * @param fieldName 数据 Map 中的字段名（用于错误消息）
      * @param payload 二维码载荷 Map
-     * @return 生成的二维码图片渲染数据
+     * @return 生成的二维码图片数据，固定为 PNG
      */
-    public PictureRenderData convert(String fieldName, Map<String, Object> payload) {
+    public ConvertedImage convertToImage(String fieldName, Map<String, Object> payload) {
         String content = extractContent(fieldName, payload);
         int width =
                 toSizeOrDefault(fieldName, FIELD_WIDTH, payload.get(FIELD_WIDTH), DEFAULT_WIDTH);
         int height =
                 toSizeOrDefault(fieldName, FIELD_HEIGHT, payload.get(FIELD_HEIGHT), DEFAULT_HEIGHT);
 
-        byte[] png = generateQrCodePng(fieldName, content, width, height);
-        return Pictures.ofBytes(png, PictureType.PNG).size(width, height).create();
+        return new ConvertedImage(
+                generateQrCodePng(fieldName, content, width, height), PNG_FORMAT, width, height);
+    }
+
+    /** 将二维码载荷转换为 poi-tl 的 {@link PictureRenderData} */
+    public PictureRenderData convert(String fieldName, Map<String, Object> payload) {
+        ConvertedImage image = convertToImage(fieldName, payload);
+        return Pictures.ofBytes(image.bytes(), PictureType.PNG)
+                .size(image.width(), image.height())
+                .create();
     }
 
     /** 提取并校验必填的二维码内容 */

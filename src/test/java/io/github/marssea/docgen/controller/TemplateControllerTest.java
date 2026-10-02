@@ -5,7 +5,8 @@ import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-import io.github.marssea.docgen.service.TemplateService;
+import io.github.marssea.docgen.template.TemplateRepository;
+import io.github.marssea.docgen.template.TemplateWriter;
 import java.util.Arrays;
 import java.util.List;
 import org.junit.jupiter.api.*;
@@ -22,7 +23,9 @@ class TemplateControllerTest {
 
     @Autowired private MockMvc mockMvc;
 
-    @MockBean private TemplateService templateService;
+    @MockBean private TemplateWriter templateWriter;
+
+    @MockBean private TemplateRepository templateRepository;
 
     @Nested
     @DisplayName("POST /api/v1/template/upload 测试")
@@ -31,7 +34,7 @@ class TemplateControllerTest {
         @Test
         @DisplayName("成功上传 Word 模板")
         void shouldUploadWordTemplate() throws Exception {
-            when(templateService.uploadTemplate(any())).thenReturn("test-template.docx");
+            when(templateWriter.upload(any())).thenReturn("test-template.docx");
 
             MockMultipartFile file =
                     new MockMultipartFile(
@@ -49,7 +52,7 @@ class TemplateControllerTest {
         @Test
         @DisplayName("成功上传 Excel 模板")
         void shouldUploadExcelTemplate() throws Exception {
-            when(templateService.uploadTemplate(any())).thenReturn("test-template.xlsx");
+            when(templateWriter.upload(any())).thenReturn("test-template.xlsx");
 
             MockMultipartFile file =
                     new MockMultipartFile(
@@ -73,7 +76,7 @@ class TemplateControllerTest {
         @DisplayName("成功获取模板列表")
         void shouldReturnTemplateList() throws Exception {
             List<String> templates = Arrays.asList("report.docx", "data.xlsx", "certificate.docx");
-            when(templateService.listTemplates()).thenReturn(templates);
+            when(templateRepository.list()).thenReturn(templates);
 
             mockMvc.perform(get("/api/v1/template/list"))
                     .andExpect(status().isOk())
@@ -87,7 +90,7 @@ class TemplateControllerTest {
         @Test
         @DisplayName("空模板目录时返回空列表")
         void shouldReturnEmptyListWhenNoTemplates() throws Exception {
-            when(templateService.listTemplates()).thenReturn(List.of());
+            when(templateRepository.list()).thenReturn(List.of());
 
             mockMvc.perform(get("/api/v1/template/list"))
                     .andExpect(status().isOk())
@@ -104,7 +107,7 @@ class TemplateControllerTest {
         @Test
         @DisplayName("成功删除模板文件")
         void shouldDeleteExistingTemplate() throws Exception {
-            when(templateService.deleteTemplate("old-template.docx")).thenReturn(true);
+            when(templateWriter.delete(any())).thenReturn(true);
 
             mockMvc.perform(delete("/api/v1/template/old-template.docx"))
                     .andExpect(status().isOk())
@@ -115,7 +118,7 @@ class TemplateControllerTest {
         @Test
         @DisplayName("删除不存在的模板返回不存在提示")
         void shouldReturnNotFoundWhenTemplateDoesNotExist() throws Exception {
-            when(templateService.deleteTemplate("missing.docx")).thenReturn(false);
+            when(templateWriter.delete(any())).thenReturn(false);
 
             mockMvc.perform(delete("/api/v1/template/missing.docx"))
                     .andExpect(status().isOk())
@@ -132,7 +135,7 @@ class TemplateControllerTest {
         @DisplayName("成功下载 Word 模板")
         void shouldDownloadWordTemplate() throws Exception {
             byte[] content = "word template content".getBytes();
-            when(templateService.downloadTemplate("report.docx")).thenReturn(content);
+            when(templateRepository.read(any())).thenReturn(content);
 
             mockMvc.perform(get("/api/v1/template/download/report.docx"))
                     .andExpect(status().isOk())
@@ -151,7 +154,7 @@ class TemplateControllerTest {
         @DisplayName("成功下载 Excel 模板")
         void shouldDownloadExcelTemplate() throws Exception {
             byte[] content = "excel template content".getBytes();
-            when(templateService.downloadTemplate("data.xlsx")).thenReturn(content);
+            when(templateRepository.read(any())).thenReturn(content);
 
             mockMvc.perform(get("/api/v1/template/download/data.xlsx"))
                     .andExpect(status().isOk())

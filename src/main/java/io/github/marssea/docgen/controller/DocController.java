@@ -1,5 +1,6 @@
 package io.github.marssea.docgen.controller;
 
+import io.github.marssea.docgen.controller.GeneratedDocumentResponse.DocumentType;
 import io.github.marssea.docgen.model.ExcelFillRequest;
 import io.github.marssea.docgen.model.ExcelGenRequest;
 import io.github.marssea.docgen.model.WordBatchRequest;
@@ -14,13 +15,8 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.io.IOException;
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
-import java.util.Objects;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -86,39 +82,15 @@ public class DocController {
 
         byte[] bytes = wordService.generateWord(request.getTemplateName(), request.getData());
 
-        if (bytes == null || bytes.length == 0) {
-            throw new IllegalStateException("Generated word document is empty");
-        }
-
-        String fileName = request.getFileName();
-        if (fileName == null || fileName.isBlank()) {
-            fileName = "generated";
-        }
-
-        // 清理非法字符
-        fileName = fileName.replaceAll("[\\\\/:*?\"<>|]", "_");
-
-        String encodedFileName =
-                URLEncoder.encode(fileName + ".docx", StandardCharsets.UTF_8).replace("+", "%20");
+        GeneratedDocumentResponse document =
+                GeneratedDocumentResponse.of(bytes, DocumentType.WORD, request.getFileName());
 
         log.info(
                 "Word document generated successfully, size: {} bytes, fileName: {}",
-                bytes.length,
-                fileName);
+                document.size(),
+                document.downloadName());
 
-        return ResponseEntity.ok()
-                .contentType(
-                        Objects.requireNonNull(
-                                MediaType.parseMediaType(
-                                        "application/vnd.openxmlformats-officedocument.wordprocessingml.document")))
-                .header(
-                        HttpHeaders.CONTENT_DISPOSITION,
-                        "attachment; filename=\""
-                                + encodedFileName
-                                + "\"; filename*=UTF-8''"
-                                + encodedFileName)
-                .contentLength(bytes.length)
-                .body(bytes);
+        return document.toResponseEntity();
     }
 
     /**
@@ -161,41 +133,17 @@ public class DocController {
 
         byte[] bytes = wordService.generateBatch(request.getTemplateName(), request.getDataList());
 
-        if (bytes == null || bytes.length == 0) {
-            throw new IllegalStateException("Generated batch word document is empty");
-        }
-
-        String fileName = request.getFileName();
-        if (fileName == null || fileName.isBlank()) {
-            fileName = "batch_generated";
-        }
-
-        // 清理非法字符
-        fileName = fileName.replaceAll("[\\\\/:*?\"<>|]", "_");
-
-        String encodedFileName =
-                URLEncoder.encode(fileName + ".docx", StandardCharsets.UTF_8).replace("+", "%20");
+        GeneratedDocumentResponse document =
+                GeneratedDocumentResponse.of(bytes, DocumentType.WORD_BATCH, request.getFileName());
 
         log.info(
                 "Batch word document generated successfully, template instances: {}, size: {}"
                         + " bytes, fileName: {}",
                 request.getDataList().size(),
-                bytes.length,
-                fileName);
+                document.size(),
+                document.downloadName());
 
-        return ResponseEntity.ok()
-                .contentType(
-                        Objects.requireNonNull(
-                                MediaType.parseMediaType(
-                                        "application/vnd.openxmlformats-officedocument.wordprocessingml.document")))
-                .header(
-                        HttpHeaders.CONTENT_DISPOSITION,
-                        "attachment; filename=\""
-                                + encodedFileName
-                                + "\"; filename*=UTF-8''"
-                                + encodedFileName)
-                .contentLength(bytes.length)
-                .body(bytes);
+        return document.toResponseEntity();
     }
 
     /**
@@ -236,39 +184,15 @@ public class DocController {
                 excelService.generateExcel(
                         request.getSheetName(), request.getHeaders(), request.getData());
 
-        if (bytes == null || bytes.length == 0) {
-            throw new IllegalStateException("Generated excel document is empty");
-        }
-
-        String fileName = request.getFileName();
-        if (fileName == null || fileName.isBlank()) {
-            fileName = "generated";
-        }
-
-        // 清理非法字符
-        fileName = fileName.replaceAll("[\\\\/:*?\"<>|]", "_");
-
-        String encodedFileName =
-                URLEncoder.encode(fileName + ".xlsx", StandardCharsets.UTF_8).replace("+", "%20");
+        GeneratedDocumentResponse document =
+                GeneratedDocumentResponse.of(bytes, DocumentType.EXCEL, request.getFileName());
 
         log.info(
                 "Excel document generated successfully, size: {} bytes, fileName: {}",
-                bytes.length,
-                fileName);
+                document.size(),
+                document.downloadName());
 
-        return ResponseEntity.ok()
-                .contentType(
-                        Objects.requireNonNull(
-                                MediaType.parseMediaType(
-                                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")))
-                .header(
-                        HttpHeaders.CONTENT_DISPOSITION,
-                        "attachment; filename=\""
-                                + encodedFileName
-                                + "\"; filename*=UTF-8''"
-                                + encodedFileName)
-                .contentLength(bytes.length)
-                .body(bytes);
+        return document.toResponseEntity();
     }
 
     /**
@@ -304,7 +228,8 @@ public class DocController {
     @PostMapping("/excel/fill")
     public ResponseEntity<byte[]> fillExcelTemplate(@Valid @RequestBody ExcelFillRequest request) {
         log.info(
-                "Received excel fill request, template: {}, fileName: {}, sheetNo: {}, sheetName: {}",
+                "Received excel fill request, template: {}, fileName: {}, sheetNo: {}, sheetName:"
+                        + " {}",
                 request.getTemplateName(),
                 request.getFileName(),
                 request.getSheetNo(),
@@ -318,38 +243,14 @@ public class DocController {
                         request.getSheetNo(),
                         request.getSheetName());
 
-        if (bytes == null || bytes.length == 0) {
-            throw new IllegalStateException("Filled excel document is empty");
-        }
-
-        String fileName = request.getFileName();
-        if (fileName == null || fileName.isBlank()) {
-            fileName = "filled";
-        }
-
-        // 清理非法字符
-        fileName = fileName.replaceAll("[\\\\/:*?\"<>|]", "_");
-
-        String encodedFileName =
-                URLEncoder.encode(fileName + ".xlsx", StandardCharsets.UTF_8).replace("+", "%20");
+        GeneratedDocumentResponse document =
+                GeneratedDocumentResponse.of(bytes, DocumentType.EXCEL_FILL, request.getFileName());
 
         log.info(
                 "Excel template filled successfully, size: {} bytes, fileName: {}",
-                bytes.length,
-                fileName);
+                document.size(),
+                document.downloadName());
 
-        return ResponseEntity.ok()
-                .contentType(
-                        Objects.requireNonNull(
-                                MediaType.parseMediaType(
-                                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")))
-                .header(
-                        HttpHeaders.CONTENT_DISPOSITION,
-                        "attachment; filename=\""
-                                + encodedFileName
-                                + "\"; filename*=UTF-8''"
-                                + encodedFileName)
-                .contentLength(bytes.length)
-                .body(bytes);
+        return document.toResponseEntity();
     }
 }

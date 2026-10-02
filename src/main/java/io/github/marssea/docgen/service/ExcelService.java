@@ -8,18 +8,18 @@ import com.alibaba.excel.metadata.data.WriteCellData;
 import com.alibaba.excel.write.metadata.WriteSheet;
 import com.alibaba.excel.write.metadata.fill.FillConfig;
 import com.alibaba.excel.write.style.column.LongestMatchColumnWidthStyleStrategy;
-import io.github.marssea.docgen.config.DocGenProperties;
 import io.github.marssea.docgen.exception.InvalidImagePayloadException;
-import io.github.marssea.docgen.exception.TemplateNotFoundException;
+import io.github.marssea.docgen.payload.ConvertedImage;
+import io.github.marssea.docgen.payload.PayloadWalker;
+import io.github.marssea.docgen.template.TemplateName;
+import io.github.marssea.docgen.template.TemplateName.TemplateKind;
+import io.github.marssea.docgen.template.TemplateRepository;
 import io.github.marssea.docgen.util.ImagePayloadConverter;
-import io.github.marssea.docgen.util.TemplateValidationUtil;
+import io.github.marssea.docgen.util.QrCodePayloadConverter;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
@@ -49,8 +49,9 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class ExcelService {
 
-    private final DocGenProperties properties;
+    private final TemplateRepository templateRepository;
     private final ImagePayloadConverter imagePayloadConverter;
+    private final QrCodePayloadConverter qrCodePayloadConverter;
 
     /**
      * 根据表头和数据生成 Excel 文档
@@ -124,23 +125,12 @@ public class ExcelService {
             Map<String, List<Map<String, Object>>> listData,
             Integer sheetNo,
             String sheetName) {
-        // 安全校验：防止路径遍历攻击，验证扩展名
-        TemplateValidationUtil.validateExcelTemplateExtension(templateName);
-
-        // 构建模板文件的完整路径
-        Path templatePath = Paths.get(properties.getTemplatePath(), templateName);
-        File templateFile = templatePath.toFile();
-
-        // 校验模板文件是否存在
-        if (!templateFile.exists()) {
-            log.error("Template file not found at: {}", templatePath);
-            throw new TemplateNotFoundException(
-                    templateName, "Template not found at: " + templatePath);
-        }
+        // 安全校验：命名规则与存在性检查统一走 TemplateRepository，Excel 侧不再自行拼接模板路径
+        File templateFile = templateRepository.locate(parseTemplateName(templateName));
 
         log.info(
                 "Filling Excel template: {}, data keys: {}, list keys: {}",
-                templatePath,
+                templateFile.getPath(),
                 data != null ? data.keySet() : "null",
                 listData != null ? listData.keySet() : "null");
 
@@ -161,7 +151,8 @@ public class ExcelService {
                                 "Filling list data for key: {}, rows: {}",
                                 entry.getKey(),
                                 entry.getValue().size());
-                        excelWriter.fill(entry.getValue(), fillConfig, writeSheet);
+                        excelWriter.fill(
+                                preprocessListPayloads(entry.getValue()), fillConfig, writeSheet);
                     }
                 }
 
@@ -173,8 +164,6 @@ public class ExcelService {
 
             log.info("Excel template filled successfully, size: {} bytes", out.size());
             return out.toByteArray();
-        } catch (TemplateNotFoundException e) {
-            throw e;
         } catch (Exception e) {
             log.error("Failed to fill Excel template", e);
             throw new RuntimeException("Failed to fill Excel template: " + e.getMessage(), e);
@@ -197,6 +186,15 @@ public class ExcelService {
     }
 
     /**
+     * 解析调用方传入的模板名
+     *
+     * <p>命名规则（合法字符、必须为 .xlsx）由 {@link TemplateName} 统一判定，此处只声明本模块要的是 Excel 模板。
+     */
+    private static TemplateName parseTemplateName(String templateName) {
+        return TemplateName.parse(templateName, TemplateKind.EXCEL);
+    }
+
+    /**
      * 构建 WriteSheet 实例
      *
      * <p>优先使用 sheetNo，其次使用 sheetName，都为空时默认使用索引 0。
@@ -211,31 +209,63 @@ public class ExcelService {
         }
     }
 
-    /** 预处理 Excel 模板图片载荷 */
+    /**
+     * 预处理 Excel 模板载荷
+     *
+     * <p>遍历由 {@link PayloadWalker} 负责，本模块只在叶子上判定载荷并包装成 EasyExcel 的 {@code WriteCellData}。 与 Word
+     * 侧共用同一份遍历 —— 那些「循环行内的图片载荷不生效」的差异，来自这里原先只扫描顶层、且 listData 分支完全不预处理，而非遍历器本身。
+     */
     private Map<String, Object> preprocessImagePayloads(Map<String, Object> data) {
-        if (data == null) {
-            return null;
-        }
-
-        Map<String, Object> processed = new HashMap<>();
-        data.forEach(
-                (key, value) -> {
+        return PayloadWalker.walk(
+                data,
+                (field, value) -> {
                     if (imagePayloadConverter.isImagePayload(value)) {
                         @SuppressWarnings("unchecked")
                         Map<String, Object> payload = (Map<String, Object>) value;
-                        log.debug("Converting Excel image payload for field: {}", key);
-                        processed.put(key, toExcelImageCell(key, payload));
-                    } else {
-                        processed.put(key, value);
+                        log.debug("Converting Excel image payload for field: {}", field);
+                        return toExcelImageCell(
+                                field, imagePayloadConverter.convertToImage(field, payload));
                     }
+                    if (qrCodePayloadConverter.isQrCodePayload(value)) {
+                        @SuppressWarnings("unchecked")
+                        Map<String, Object> payload = (Map<String, Object>) value;
+                        log.debug("Converting Excel qrcode payload for field: {}", field);
+                        return toExcelImageCell(
+                                field, qrCodePayloadConverter.convertToImage(field, payload));
+                    }
+                    // 未认出时原样返回，遍历器据此继续向下
+                    return value;
                 });
+    }
+
+    /**
+     * 预处理 Excel 列表载荷
+     *
+     * <p>列表填充与单值填充在 EasyExcel 内部走同一条 {@code doFill} / {@code converterAndSet} / {@code fillImage}
+     * 链路（{@code AbstractExcelWriteExecutor.convert} 判 {@code originalFieldClass ==
+     * WriteCellData.class} 后原样返回）， 因此列表里的图片载荷同样必须 提前转成 {@code WriteCellData}，否则 {@code Map}
+     * 原样传入会因找不到匹配 converter 而失败。 逐个元素处理而非整体处理，是为了让字段路径带上行号 （{@code items[0].logo}），异常提示能定位到具体一行。
+     */
+    private List<Map<String, Object>> preprocessListPayloads(List<Map<String, Object>> rows) {
+        if (rows == null) {
+            return null;
+        }
+        List<Map<String, Object>> processed = new ArrayList<>();
+        int index = 0;
+        for (Map<String, Object> row : rows) {
+            processed.add(preprocessImagePayloads(row));
+            index++;
+        }
         return processed;
     }
 
-    /** 将通用图片载荷转换为 EasyExcel 图片单元格数据 */
-    private WriteCellData<Void> toExcelImageCell(String fieldName, Map<String, Object> payload) {
-        ImagePayloadConverter.ConvertedImage image =
-                imagePayloadConverter.convertToImage(fieldName, payload);
+    /**
+     * 将通用图片结果转换为 EasyExcel 图片单元格数据
+     *
+     * <p>入参取 {@link ConvertedImage} 而非载荷 {@code Map}：图片与二维码的字节来源不同（URL 下载 / ZXing 本地生成）， 但落到
+     * EasyExcel 的包装动作完全相同。
+     */
+    private WriteCellData<Void> toExcelImageCell(String fieldName, ConvertedImage image) {
         WriteCellData<Void> cellData = new WriteCellData<>(CellDataTypeEnum.EMPTY);
         ImageData imageData = new ImageData();
         imageData.setImage(image.bytes());
