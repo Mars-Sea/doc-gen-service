@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>模板管理 · Doc-Gen-Service</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand">
+        <svg class="icon brand-icon" viewBox="0 0 24 24" aria-hidden="true">
+          <path
+            d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.5"
+            stroke-linejoin="round"
+          />
+          <path d="M14 3v5h5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" />
+          <path d="M9 13h6M9 17h4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+        </svg>
+        <div class="brand-text">
+          <h1>模板管理</h1>
+          <p class="brand-sub">doc-gen-service</p>
+        </div>
+      </div>
+      <div class="topbar-actions">
+        <a class="btn ghost" href="swagger-ui.html">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M14 4h6v6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" />
+            <path d="M20 4 11 13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+            <path d="M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" />
+          </svg>
+          API 文档
+        </a>
+        <button class="btn ghost" id="refreshBtn" type="button">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M20 11a8 8 0 1 0-2.3 5.7" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+            <path d="M20 5v6h-6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" />
+          </svg>
+          刷新
+        </button>
+      </div>
+    </header>
+
+    <main class="container">
+      <section class="panel">
+        <h2 class="panel-title">上传模板</h2>
+        <p class="panel-desc">支持 Word（.docx）与 Excel（.xlsx）模板，单个文件最大 50MB。同名模板上传后将覆盖原有文件。</p>
+        <div class="dropzone" id="dropzone" tabindex="0" role="button" aria-label="选择或拖拽模板文件上传">
+          <svg class="icon dropzone-icon" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M12 15V4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+            <path d="M8 8l4-4 4 4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" />
+            <path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" />
+          </svg>
+          <p class="dropzone-main">拖拽文件到此处，或<span class="link">点击选择文件</span></p>
+          <p class="dropzone-sub">仅接受 .docx / .xlsx</p>
+          <input type="file" id="fileInput" accept=".docx,.xlsx" hidden multiple />
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head">
+          <h2 class="panel-title">模板列表</h2>
+          <span class="hint" id="countHint">正在加载…</span>
+        </div>
+        <div class="table-wrap">
+          <table class="template-table">
+            <thead>
+              <tr>
+                <th class="col-name">文件名</th>
+                <th class="col-type">类型</th>
+                <th class="col-size">大小</th>
+                <th class="col-time">修改时间</th>
+                <th class="col-ops">操作</th>
+              </tr>
+            </thead>
+            <tbody id="tableBody">
+              <tr class="state-row">
+                <td colspan="5" id="stateCell">正在加载模板列表…</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+
+    <!-- 统一提示条：所有操作结果都从这里出，失败文案走中文 -->
+    <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+    <!-- 自制确认弹层：替代原生 confirm，删除与覆盖两种场景共用 -->
+    <div class="modal" id="modal" hidden>
+      <div class="modal-mask" data-modal-dismiss></div>
+      <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+        <h3 class="modal-title" id="modalTitle"></h3>
+        <p class="modal-text" id="modalText"></p>
+        <div class="modal-actions">
+          <button class="btn ghost" id="modalCancel" type="button">取消</button>
+          <button class="btn primary" id="modalConfirm" type="button">确定</button>
+        </div>
+      </div>
+    </div>
+
+    <script src="app.js"></script>
+  </body>
+</html>

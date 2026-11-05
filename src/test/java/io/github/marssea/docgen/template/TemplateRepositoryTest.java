@@ -8,6 +8,8 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.FileTime;
+import java.time.Instant;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -137,12 +139,42 @@ class TemplateRepositoryTest {
             Files.createFile(tempDir.resolve("template2.xlsx"));
             Files.createFile(tempDir.resolve("template3.docx"));
 
-            List<String> templates = repository.list();
+            List<TemplateInfo> templates = repository.list();
 
             assertEquals(3, templates.size());
-            assertTrue(templates.contains("template1.docx"));
-            assertTrue(templates.contains("template2.xlsx"));
-            assertTrue(templates.contains("template3.docx"));
+            assertEquals(
+                    List.of("template1.docx", "template2.xlsx", "template3.docx"),
+                    templates.stream().map(TemplateInfo::name).toList());
+        }
+
+        @Test
+        @DisplayName("应该带出文件大小与最后修改时间")
+        void shouldExposeSizeAndLastModified() throws IOException {
+            Path template = tempDir.resolve("sized.docx");
+            Files.write(template, "hello".getBytes());
+            Instant before = Instant.parse("2026-01-01T00:00:00Z");
+            Files.setLastModifiedTime(template, FileTime.from(before));
+
+            List<TemplateInfo> templates = repository.list();
+
+            assertEquals(1, templates.size());
+            TemplateInfo info = templates.get(0);
+            assertEquals("sized.docx", info.name());
+            assertEquals(5L, info.size());
+            assertEquals(before, info.lastModified());
+        }
+
+        @Test
+        @DisplayName("列表仍按名称排序")
+        void shouldKeepSortedByName() throws IOException {
+            Files.createFile(tempDir.resolve("b.docx"));
+            Files.createFile(tempDir.resolve("a.docx"));
+
+            List<TemplateInfo> templates = repository.list();
+
+            assertEquals(
+                    List.of("a.docx", "b.docx"),
+                    templates.stream().map(TemplateInfo::name).toList());
         }
 
         @Test
@@ -152,16 +184,16 @@ class TemplateRepositoryTest {
             Files.createFile(tempDir.resolve("readme.txt"));
             Files.createFile(tempDir.resolve("data.pdf"));
 
-            List<String> templates = repository.list();
+            List<TemplateInfo> templates = repository.list();
 
             assertEquals(1, templates.size());
-            assertTrue(templates.contains("template.docx"));
+            assertEquals("template.docx", templates.get(0).name());
         }
 
         @Test
         @DisplayName("空目录应该返回空列表")
         void shouldReturnEmptyListForEmptyDirectory() throws IOException {
-            List<String> templates = repository.list();
+            List<TemplateInfo> templates = repository.list();
 
             assertNotNull(templates);
             assertTrue(templates.isEmpty());
@@ -173,7 +205,7 @@ class TemplateRepositoryTest {
             properties.setTemplatePath(tempDir.resolve("non-existent").toString());
             repository = new TemplateRepository(properties);
 
-            List<String> templates = repository.list();
+            List<TemplateInfo> templates = repository.list();
 
             assertNotNull(templates);
             assertTrue(templates.isEmpty());

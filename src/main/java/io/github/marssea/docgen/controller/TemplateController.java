@@ -1,5 +1,6 @@
 package io.github.marssea.docgen.controller;
 
+import io.github.marssea.docgen.template.TemplateInfo;
 import io.github.marssea.docgen.template.TemplateName;
 import io.github.marssea.docgen.template.TemplateName.TemplateKind;
 import io.github.marssea.docgen.template.TemplateRepository;
@@ -11,6 +12,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import java.io.IOException;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
@@ -85,12 +87,16 @@ public class TemplateController {
     /**
      * 获取模板文件列表
      *
-     * <p>返回服务器上所有可用的模板文件名列表。
+     * <p>返回服务器上所有可用的模板及其属性。每项含 {@code name}（文件名）、{@code size}（字节数） 与 {@code lastModified}（ISO-8601
+     * UTC 时间，如 {@code 2026-10-09T08:54:16Z}）。
      *
-     * @return 模板文件名列表
+     * @return 模板信息列表
      * @throws IOException 目录读取异常
      */
-    @Operation(summary = "获取模板列表", description = "获取服务器上所有可用的模板文件名列表（包括 .docx 和 .xlsx 文件）")
+    @Operation(
+            summary = "获取模板列表",
+            description =
+                    "获取服务器上所有可用的模板（包括 .docx 和 .xlsx 文件）。返回文件名、字节大小与最后修改时间（ISO-8601" + " UTC）。")
     @ApiResponses(
             value = {
                 @ApiResponse(
@@ -106,10 +112,27 @@ public class TemplateController {
     public ResponseEntity<Map<String, Object>> listTemplates() throws IOException {
         log.info("Received template list request");
 
-        List<String> templates = templateRepository.list();
+        List<TemplateInfo> templates = templateRepository.list();
+
+        List<Map<String, Object>> items =
+                templates.stream().map(TemplateController::toItem).toList();
 
         return ResponseEntity.ok(
-                Map.of("success", true, "count", templates.size(), "templates", templates));
+                Map.of("success", true, "count", items.size(), "templates", items));
+    }
+
+    /**
+     * 把一条模板信息摊平成响应元素
+     *
+     * <p>为什么在这里摊平而不是直接序列化 {@link TemplateInfo}：控制器其余端点返回的都是 {@code Map}，混用两套出参风格会让「响应长什么样」分散到两处； 且
+     * {@code Instant} 由 Jackson 序列化时受全局配置影响，显式转换成字符串可锁定 ISO-8601 UTC 这一种格式。
+     */
+    private static Map<String, Object> toItem(TemplateInfo info) {
+        Map<String, Object> item = new LinkedHashMap<>();
+        item.put("name", info.name());
+        item.put("size", info.size());
+        item.put("lastModified", info.lastModified().toString());
+        return item;
     }
 
     /**

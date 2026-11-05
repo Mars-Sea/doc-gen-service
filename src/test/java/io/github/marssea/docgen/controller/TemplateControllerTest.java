@@ -5,9 +5,10 @@ import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
+import io.github.marssea.docgen.template.TemplateInfo;
 import io.github.marssea.docgen.template.TemplateRepository;
 import io.github.marssea.docgen.template.TemplateWriter;
-import java.util.Arrays;
+import java.time.Instant;
 import java.util.List;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -75,16 +76,64 @@ class TemplateControllerTest {
         @Test
         @DisplayName("成功获取模板列表")
         void shouldReturnTemplateList() throws Exception {
-            List<String> templates = Arrays.asList("report.docx", "data.xlsx", "certificate.docx");
+            List<TemplateInfo> templates =
+                    List.of(
+                            TemplateInfo.of(
+                                    "report.docx", 2048L, Instant.parse("2026-10-09T08:54:16Z")),
+                            TemplateInfo.of(
+                                    "data.xlsx", 1024L, Instant.parse("2026-10-08T03:00:00Z")),
+                            TemplateInfo.of(
+                                    "certificate.docx", 0L, Instant.parse("2026-10-07T23:59:59Z")));
             when(templateRepository.list()).thenReturn(templates);
 
             mockMvc.perform(get("/api/v1/template/list"))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.success").value(true))
                     .andExpect(jsonPath("$.count").value(3))
-                    .andExpect(jsonPath("$.templates[0]").value("report.docx"))
-                    .andExpect(jsonPath("$.templates[1]").value("data.xlsx"))
-                    .andExpect(jsonPath("$.templates[2]").value("certificate.docx"));
+                    .andExpect(jsonPath("$.templates[0].name").value("report.docx"))
+                    .andExpect(jsonPath("$.templates[0].size").value(2048))
+                    .andExpect(
+                            jsonPath("$.templates[0].lastModified").value("2026-10-09T08:54:16Z"))
+                    .andExpect(jsonPath("$.templates[1].name").value("data.xlsx"))
+                    .andExpect(jsonPath("$.templates[1].size").value(1024))
+                    .andExpect(jsonPath("$.templates[2].name").value("certificate.docx"))
+                    .andExpect(jsonPath("$.templates[2].size").value(0));
+        }
+
+        @Test
+        @DisplayName("时间截断到秒，不带纳秒尾数")
+        void shouldTruncateTimeToSeconds() throws Exception {
+            // 文件系统给出纳秒精度，保留尾数会让每次列表响应都不同、无法比对
+            when(templateRepository.list())
+                    .thenReturn(
+                            List.of(
+                                    TemplateInfo.of(
+                                            "report.docx",
+                                            1L,
+                                            Instant.parse("2026-10-09T08:54:16.161164400Z"))));
+
+            mockMvc.perform(get("/api/v1/template/list"))
+                    .andExpect(status().isOk())
+                    .andExpect(
+                            jsonPath("$.templates[0].lastModified").value("2026-10-09T08:54:16Z"));
+        }
+
+        @Test
+        @DisplayName("时间是 ISO-8601 UTC，不带服务器本地时区偏移")
+        void shouldSerializeTimeAsUtc() throws Exception {
+            when(templateRepository.list())
+                    .thenReturn(
+                            List.of(
+                                    TemplateInfo.of(
+                                            "report.docx",
+                                            1L,
+                                            Instant.parse("2026-10-09T16:54:16+08:00"))));
+
+            // 同一时刻用带偏移的方式构造，序列化后必须是 UTC 的 Z 形式，否则跨时区调用方会读错
+            mockMvc.perform(get("/api/v1/template/list"))
+                    .andExpect(status().isOk())
+                    .andExpect(
+                            jsonPath("$.templates[0].lastModified").value("2026-10-09T08:54:16Z"));
         }
 
         @Test

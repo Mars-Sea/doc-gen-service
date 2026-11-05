@@ -7,6 +7,8 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.attribute.BasicFileAttributes;
+import java.time.Instant;
 import java.util.List;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
@@ -76,12 +78,14 @@ public class TemplateRepository {
     }
 
     /**
-     * 列出模板目录下的模板文件
+     * 列出模板目录下的模板文件及其属性
      *
-     * @return 模板文件名列表，按名称排序；目录不存在时返回空列表
-     * @throws IOException 目录读取失败
+     * <p>除文件名外一并返回大小与最后修改时间：管理页面要显示这两项， 而调用方自行 stat 一遍等于把模板目录的位置与读法复制出去。
+     *
+     * @return 模板信息列表，按名称排序；目录不存在时返回空列表
+     * @throws IOException 目录读取或属性读取失败
      */
-    public List<String> list() throws IOException {
+    public List<TemplateInfo> list() throws IOException {
         Path templateDir = Paths.get(properties.getTemplatePath());
         if (!Files.exists(templateDir)) {
             log.warn("Template directory does not exist: {}", templateDir);
@@ -92,7 +96,24 @@ public class TemplateRepository {
                     .map(path -> path.getFileName().toString())
                     .filter(TemplateRepository::hasTemplateExtension)
                     .sorted()
+                    .map(name -> toInfo(templateDir.resolve(name), name))
                     .toList();
+        }
+    }
+
+    /**
+     * 读出单个模板文件的属性
+     *
+     * <p>读取失败不中止整个列表：一个文件属性读不出来（例如被占用）不代表其余模板不可用， 此时大小回退为 0、时间回退为 epoch。
+     */
+    private static TemplateInfo toInfo(Path path, String name) {
+        try {
+            BasicFileAttributes attributes = Files.readAttributes(path, BasicFileAttributes.class);
+            return TemplateInfo.of(
+                    name, attributes.size(), attributes.lastModifiedTime().toInstant());
+        } catch (IOException e) {
+            log.warn("Failed to read attributes of template: {}", name, e);
+            return TemplateInfo.of(name, 0L, Instant.EPOCH);
         }
     }
 

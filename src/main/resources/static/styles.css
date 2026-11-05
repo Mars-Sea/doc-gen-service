@@ -1,0 +1,396 @@
+/* 模板管理页面样式：正文 14px，辅助文字不小于 12px，图标为线性单色 SVG */
+:root {
+  --bg: #f5f6f8;
+  --surface: #ffffff;
+  --border: #e3e6ea;
+  --text: #1f2329;
+  --text-weak: #6b7280;
+  --primary: #2f54eb;
+  --primary-weak: #eef1fd;
+  --danger: #d4380d;
+  --success: #237804;
+  --radius: 8px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", "Helvetica Neue", Arial, sans-serif;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+h1,
+h2,
+h3 {
+  margin: 0;
+  font-weight: 600;
+}
+
+/* ---------- 顶栏 ---------- */
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 24px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.brand-icon {
+  width: 28px;
+  height: 28px;
+  color: var(--primary);
+}
+
+.brand-text h1 {
+  font-size: 16px;
+}
+
+.brand-sub {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-weak);
+}
+
+.topbar-actions {
+  display: flex;
+  gap: 8px;
+}
+
+/* ---------- 按钮 ---------- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  font-size: 14px;
+  font-family: inherit;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  text-decoration: none;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.btn:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.btn:disabled:hover {
+  border-color: var(--border);
+  color: var(--text);
+}
+
+.btn.primary {
+  color: #fff;
+  background: var(--primary);
+  border-color: var(--primary);
+}
+
+.btn.primary:hover {
+  background: #1d3fbd;
+  border-color: #1d3fbd;
+  color: #fff;
+}
+
+.btn.danger {
+  color: var(--danger);
+  border-color: #f0c4b8;
+}
+
+.btn.danger:hover {
+  background: var(--danger);
+  border-color: var(--danger);
+  color: #fff;
+}
+
+.icon {
+  width: 16px;
+  height: 16px;
+  flex: none;
+}
+
+/* ---------- 布局 ---------- */
+.container {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 24px 16px 48px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+}
+
+.panel-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.panel-title {
+  font-size: 15px;
+}
+
+.panel-desc {
+  margin: 6px 0 14px;
+  font-size: 12px;
+  color: var(--text-weak);
+}
+
+.hint {
+  font-size: 12px;
+  color: var(--text-weak);
+}
+
+/* ---------- 上传区 ---------- */
+.dropzone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 28px 16px;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+  background: #fafbfc;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.dropzone:hover,
+.dropzone:focus-visible {
+  border-color: var(--primary);
+  outline: none;
+}
+
+.dropzone.dragging {
+  border-color: var(--primary);
+  background: var(--primary-weak);
+}
+
+.dropzone-icon {
+  width: 24px;
+  height: 24px;
+  color: var(--primary);
+}
+
+.dropzone-main {
+  margin: 0;
+  font-size: 14px;
+}
+
+.dropzone-sub {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-weak);
+}
+
+.link {
+  color: var(--primary);
+}
+
+/* ---------- 表格 ---------- */
+.table-wrap {
+  overflow-x: auto;
+}
+
+.template-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.template-table th,
+.template-table td {
+  padding: 10px 12px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+}
+
+.template-table th.col-size,
+.template-table th.col-time {
+  text-align: right;
+}
+
+.template-table th {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-weak);
+  background: #fafbfc;
+}
+
+.template-table tbody tr:hover {
+  background: #fafbfc;
+}
+
+.col-type {
+  width: 80px;
+}
+
+.col-size {
+  width: 96px;
+}
+
+.col-time {
+  width: 160px;
+}
+
+.col-ops {
+  width: 160px;
+}
+
+/* 大小与时间右对齐且等宽：数字列左对齐会让量级差异看不出来 */
+.col-size,
+.col-time {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.size-cell,
+.time-cell {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-weak);
+  white-space: nowrap;
+}
+
+.state-row td {
+  padding: 28px 12px;
+  text-align: center;
+  color: var(--text-weak);
+  font-size: 13px;
+}
+
+.state-row.error td {
+  color: var(--danger);
+}
+
+.tag {
+  display: inline-block;
+  padding: 1px 8px;
+  font-size: 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  color: var(--text-weak);
+}
+
+.tag.word {
+  color: #2f54eb;
+  border-color: #c7d2f7;
+  background: var(--primary-weak);
+}
+
+.tag.excel {
+  color: #237804;
+  border-color: #c2e0b6;
+  background: #f2fae9;
+}
+
+.file-name {
+  word-break: break-all;
+}
+
+.row-ops {
+  display: flex;
+  gap: 8px;
+}
+
+/* ---------- 提示条 ---------- */
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 32px;
+  transform: translateX(-50%);
+  max-width: 80vw;
+  padding: 10px 16px;
+  font-size: 14px;
+  color: #fff;
+  background: #1f2329;
+  border-radius: var(--radius);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.16);
+  z-index: 20;
+}
+
+.toast.success {
+  background: var(--success);
+}
+
+.toast.error {
+  background: var(--danger);
+}
+
+/* ---------- 确认弹层 ---------- */
+.modal {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal[hidden] {
+  display: none;
+}
+
+.modal-mask {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+}
+
+.modal-box {
+  position: relative;
+  width: 360px;
+  max-width: 90vw;
+  padding: 20px;
+  background: var(--surface);
+  border-radius: var(--radius);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.18);
+}
+
+.modal-title {
+  font-size: 15px;
+}
+
+.modal-text {
+  margin: 8px 0 18px;
+  font-size: 13px;
+  color: var(--text-weak);
+  word-break: break-all;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
