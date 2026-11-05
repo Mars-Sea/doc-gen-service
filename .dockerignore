@@ -12,6 +12,9 @@ src/
 # 模板文件（Docker 运行时挂载）
 templates/
 
+# OOM 堆快照（运行时生成，不入镜像）
+dumps/
+
 # 日志
 *.log
 logs/

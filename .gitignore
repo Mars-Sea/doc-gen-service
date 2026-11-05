@@ -55,5 +55,12 @@ application-local.properties
 # Templates - 模板文件不提交到仓库，运行时动态上传或挂载
 templates/
 
+# OOM 堆快照 - 体积大且含运行时数据，只用于本地排障
+dumps/
+
 # Claude - 本地 Claude 配置文件，不提交到仓库
 .claude/
+
+# 本地工具目录 - 只在本机使用，不入仓库
+.commandcode/
+.workbuddy/

@@ -11,6 +11,18 @@ spring:
 
 docgen:
   template-path: ${TEMPLATE_PATH:./templates}
+  # 渲染载荷限额：-1 表示不限制（默认）。
+  # 不限制时，超量请求会一路做到 Java heap space 耗尽才暴露，届时整个进程都受影响，
+  # 而不只是一个请求。合适数值取决于部署机的堆大小与真实业务量，由部署方按环境给出。
+  limits:
+    # 单次请求 listData 各行数之和的上限
+    max-list-rows: ${MAX_LIST_ROWS:-1}
+    # 单次请求单值 data 字段数（含嵌套展开）的上限
+    max-data-fields: ${MAX_DATA_FIELDS:-1}
+    # 单次请求图片 / 二维码载荷张数的上限
+    max-image-count: ${MAX_IMAGE_COUNT:-1}
+    # 请求体字节数上限（对 application/json 生效，multipart 由下面的 spring.servlet.multipart 管）
+    max-request-body-bytes: ${MAX_REQUEST_BODY_BYTES:-1}
 
 # Actuator 健康检查配置
 management:

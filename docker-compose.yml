@@ -8,12 +8,29 @@ services:
     volumes:
       # 将宿主机的模板目录挂载到容器中
       - ./templates:/app/templates
+      # OOM 堆快照落地目录。不挂载的话快照只存在于容器内，容器一重启就没了
+      - ./dumps:/app/dumps
     environment:
       - TEMPLATE_PATH=/app/templates
       - SERVER_PORT=8081
-      # 文件大小限制（可根据需要调整）
+      # 文件大小限制（仅对 multipart 上传生效，可通过需要调整）
       - MAX_FILE_SIZE=50MB
       - MAX_REQUEST_SIZE=50MB
+      # 渲染载荷限额：-1 表示不限制（默认）。
+      # 这里只给示例，默认全部不启用：合适的数值取决于容器堆大小与真实业务量，
+      # 需要时取消注释并按环境填写，改完 docker-compose up -d 即可生效。
+      # 注意：不开启时，超量请求会一路做到 Java heap space 耗尽才暴露，
+      # 影响的是整个进程而不只是一个请求。
+      # - MAX_LIST_ROWS=5000
+      # - MAX_DATA_FIELDS=500
+      # - MAX_IMAGE_COUNT=200
+      # - MAX_REQUEST_BODY_BYTES=52428800
+    # 容器内存上限。不设置时 JVM 按宿主机总内存推算堆大小，可能与实际可用的量不符，
+    # 最终表现为进程被 cgroup 杀掉而不是抛出可捕获的 OutOfMemoryError。
+    # 6g 对应约 4.5GB 堆（MaxRAMPercentage=75），实测可覆盖：
+    #   - 20 万行 x forceNewRow=true（20 列中文长文本）
+    #   - 20 万行 x forceNewRow=false（余量充足）
+    mem_limit: 6g
     restart: unless-stopped
     healthcheck:
       test: [ "CMD", "curl", "-f", "http://localhost:8081/actuator/health" ]
