@@ -15,7 +15,8 @@ A document generation microservice based on **Spring Boot**, using **poi-tl** fo
 - 📊 **Excel Generation** - Dynamic Excel creation with EasyExcel
 - 📋 **Excel Template Fill** - Fill Excel templates with variables and list data
 - 🔄 **Table Loop Rendering** - Automatic detection and rendering of collection data
-- 📤 **Template Management** - Upload and list template files via API
+- 📤 **Template Management** - Upload, download and delete templates via API or the built-in admin page
+- 🖥️ **Admin Page** - Manage templates right from the service root URL, no separate frontend deployment
 - 🐳 **Docker Ready** - Multi-architecture support (amd64/arm64)
 - 📚 **Go SDK** - Ready-to-use Go client library
 
@@ -38,6 +39,9 @@ A document generation microservice based on **Spring Boot**, using **poi-tl** fo
 mvn clean package -DskipTests
 docker-compose up -d --build
 
+# Access the template admin page
+open http://localhost:8081
+
 # Access Swagger UI
 open http://localhost:8081/swagger-ui.html
 ```
@@ -49,7 +53,10 @@ open http://localhost:8081/swagger-ui.html
 mvn clean package -DskipTests
 
 # Run
-java -jar target/doc-gen-service-0.0.5.jar
+java -jar target/doc-gen-service-0.0.6.jar
+
+# Open the template admin page
+open http://localhost:8081
 ```
 
 ## 📖 API Reference
@@ -202,8 +209,17 @@ Content-Type: application/json
 POST /api/v1/template/upload
 Content-Type: multipart/form-data
 
-# List templates
+# List templates (with file name, size in bytes, last modified time)
 GET /api/v1/template/list
+
+# Example response
+{
+  "success": true,
+  "count": 1,
+  "templates": [
+    {"name": "report.docx", "size": 5002, "lastModified": "2026-10-09T09:33:57Z"}
+  ]
+}
 
 # Download template
 GET /api/v1/template/download/{templateName}
@@ -218,6 +234,17 @@ DELETE /api/v1/template/{templateName}
 |---------------------|---------|-------------|
 | `TEMPLATE_PATH` | `./templates` | Template files directory |
 | `SERVER_PORT` | `8081` | Server port |
+| `MAX_FILE_SIZE` | `50MB` | Single multipart upload limit (uploads only) |
+| `MAX_REQUEST_SIZE` | `50MB` | Multipart request limit (uploads only) |
+| `MAX_LIST_ROWS` | `-1` | Max `listData` rows per request; `-1` = unlimited |
+| `MAX_DATA_FIELDS` | `-1` | Max flattened `data` fields per request; `-1` = unlimited |
+| `MAX_IMAGE_COUNT` | `-1` | Max image / QR-code payloads per request; `-1` = unlimited |
+| `MAX_REQUEST_BODY_BYTES` | `-1` | JSON request body limit in bytes; `-1` = unlimited |
+
+`MAX_FILE_SIZE` / `MAX_REQUEST_SIZE` only apply to multipart uploads. JSON document-generation
+requests are bounded by `MAX_REQUEST_BODY_BYTES` instead. All `-1` defaults mean unlimited: without
+them a single oversized request can exhaust the heap and affect the whole process, so set them for
+your deployment's heap size and traffic. See `docs/决策记录.md` chapter 6 for the rationale.
 
 ## 📦 Go SDK
 

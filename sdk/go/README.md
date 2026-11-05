@@ -92,7 +92,7 @@ func main() {
 |--------|---------|-------------|
 | `UploadTemplate(filePath)` | `*UploadResponse, error` | Upload from file path |
 | `UploadTemplateFromBytes(data, filename)` | `*UploadResponse, error` | Upload from bytes |
-| `ListTemplates()` | `[]string, error` | Get template names |
+| `ListTemplates()` | `[]TemplateInfo, error` | List templates with size and last modified time |
 | `DownloadTemplate(templateName)` | `[]byte, error` | Download template content |
 | `DeleteTemplate(templateName)` | `*DeleteResponse, error` | Delete template |
 
@@ -132,6 +132,19 @@ dataList := []map[string]any{
 }
 doc, _ := client.BatchGenerateWord("certificate.docx", dataList, "certificates")
 os.WriteFile("certificates.docx", doc, 0644)
+```
+
+### List Templates
+
+```go
+templates, err := client.ListTemplates()
+if err != nil {
+    log.Fatal(err)
+}
+for _, t := range templates {
+    // Size is in bytes; LastModified is ISO-8601 UTC (e.g. 2026-10-09T08:54:16Z)
+    fmt.Printf("%s  %d bytes  %s\n", t.Name, t.Size, t.LastModified)
+}
 ```
 
 ### Fill Excel Template

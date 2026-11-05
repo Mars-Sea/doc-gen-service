@@ -15,7 +15,8 @@
 - 📊 **Excel 动态生成** - 根据表头和数据动态创建 Excel
 - 📋 **Excel 模板填充** - 支持变量替换和列表循环填充
 - 🔄 **表格循环渲染** - 自动检测并渲染集合数据
-- 📤 **模板管理** - 通过 API 上传和查询模板文件
+- 📤 **模板管理** - 通过 API 或浏览器管理页面上传、下载、删除模板
+- 🖥️ **管理页面** - 访问服务根路径即可管理模板，无需额外部署前端
 - 🐳 **Docker 支持** - 多架构镜像 (amd64/arm64)
 - 📚 **Go SDK** - 开箱即用的 Go 客户端库
 
@@ -38,6 +39,9 @@
 mvn clean package -DskipTests
 docker-compose up -d --build
 
+# 访问模板管理页面
+open http://localhost:8081
+
 # 访问 Swagger UI
 open http://localhost:8081/swagger-ui.html
 ```
@@ -49,7 +53,10 @@ open http://localhost:8081/swagger-ui.html
 mvn clean package -DskipTests
 
 # 运行
-java -jar target/doc-gen-service-0.0.5.jar
+java -jar target/doc-gen-service-0.0.6.jar
+
+# 打开模板管理页面
+open http://localhost:8081
 ```
 
 ## 📖 API 接口
@@ -169,6 +176,22 @@ Content-Type: application/json
 
 支持单值变量 `{variable}`、图片变量和列表循环 `{.field}` 语法。
 
+`forceNewRow` 决定列表填充时是否强制新建行，默认 `true`。
+
+**默认 `true` 的理由**：xlsx 解包后 `xl/worksheets/sheet1.xml` 超过 100 MB 时，Excel 打开会提示
+「部分内容有问题，是否恢复」，恢复过程会丢掉读不下去的行（表现为中间一段数据只剩最后一列）。
+`true` 走共享字符串表，两个 XML 都在上限内；`false` 全部内联，同样数据量下 `sheet1.xml` 更大。
+
+实测 25 列、单元格文本 6 字符、67,000 行：
+
+| 取值 | 耗时 | 文件 | `sheet1.xml` | 可正常打开 |
+|------|------|------|-------------|-----------|
+| `true`（默认） | 26.6 秒 | 9.2 MB | 70.3 MB | 是 |
+| `false` | 4.1 秒 | 5.1 MB | 91.3 MB | 临界（70,000 行即失败） |
+
+`false` 更快但 XML 体积更大。仅在数据量小（约 3 万行以内，视单元格文本长度而定）且列表占位行
+**下方没有**静态内容时可传 `false`。
+
 ```http
 POST /api/v1/doc/excel/fill
 Content-Type: application/json
@@ -215,6 +238,17 @@ DELETE /api/v1/template/{templateName}
 |---------|--------|------|
 | `TEMPLATE_PATH` | `./templates` | 模板文件目录 |
 | `SERVER_PORT` | `8081` | 服务端口 |
+| `MAX_FILE_SIZE` | `50MB` | 单个文件上传上限（仅 multipart 上传） |
+| `MAX_REQUEST_SIZE` | `50MB` | multipart 请求上限（仅 multipart 上传） |
+| `MAX_LIST_ROWS` | `-1` | 单次请求 `listData` 行数上限，`-1` 不限制 |
+| `MAX_DATA_FIELDS` | `-1` | 单次请求单值 `data` 字段数上限（含嵌套展开），`-1` 不限制 |
+| `MAX_IMAGE_COUNT` | `-1` | 单次请求图片 / 二维码载荷张数上限，`-1` 不限制 |
+| `MAX_REQUEST_BODY_BYTES` | `-1` | JSON 请求体字节数上限，`-1` 不限制 |
+
+`MAX_FILE_SIZE` / `MAX_REQUEST_SIZE` 只对 multipart 上传生效；JSON 文档生成请求由
+`MAX_REQUEST_BODY_BYTES` 管。四个限额默认全部不限制，意味着超量请求会一路做到堆耗尽才暴露，
+影响整个进程而不只是一个请求——请按部署机的堆大小与真实业务量显式设置。设计取舍见
+`docs/决策记录.md` 第六章。
 
 ## 📦 Go SDK
 
