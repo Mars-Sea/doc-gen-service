@@ -19,11 +19,20 @@ type UploadResponse struct {
 	FileName string `json:"fileName"`
 }
 
+// TemplateInfo 单个模板的信息
+//
+// Size 为字节数，LastModified 为 ISO-8601 UTC 时间字符串（如 2026-10-09T08:54:16Z）。
+type TemplateInfo struct {
+	Name         string `json:"name"`
+	Size         int64  `json:"size"`
+	LastModified string `json:"lastModified"`
+}
+
 // ListTemplatesResponse 模板列表响应
 type ListTemplatesResponse struct {
-	Success   bool     `json:"success"`
-	Count     int      `json:"count"`
-	Templates []string `json:"templates"`
+	Success   bool           `json:"success"`
+	Count     int            `json:"count"`
+	Templates []TemplateInfo `json:"templates"`
 }
 
 // UploadTemplate 上传模板文件
@@ -166,8 +175,8 @@ func (c *Client) UploadTemplateFromBytes(data []byte, filename string) (*UploadR
 
 // ListTemplates 获取所有模板文件列表
 //
-// 返回模板文件名数组
-func (c *Client) ListTemplates() ([]string, error) {
+// 返回模板信息数组，每项包含文件名、字节大小与最后修改时间（ISO-8601 UTC）
+func (c *Client) ListTemplates() ([]TemplateInfo, error) {
 	// 构建 HTTP 请求
 	url := fmt.Sprintf("%s/api/v1/template/list", c.BaseURL)
 	req, err := http.NewRequest(http.MethodGet, url, nil)
@@ -204,48 +213,6 @@ func (c *Client) ListTemplates() ([]string, error) {
 	}
 
 	return result.Templates, nil
-}
-
-// ListTemplatesWithDetails 获取模板列表（包含详细信息）
-//
-// 返回完整的响应结构，包含 success、count 和 templates
-func (c *Client) ListTemplatesWithDetails() (*ListTemplatesResponse, error) {
-	// 构建 HTTP 请求
-	url := fmt.Sprintf("%s/api/v1/template/list", c.BaseURL)
-	req, err := http.NewRequest(http.MethodGet, url, nil)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %w", err)
-	}
-
-	// 发送请求
-	resp, err := c.HTTPClient.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to send request: %w", err)
-	}
-	defer resp.Body.Close()
-
-	// 读取响应
-	respBody, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read response: %w", err)
-	}
-
-	// 处理错误响应
-	if resp.StatusCode != http.StatusOK {
-		var errResp ErrorResponse
-		if err := json.Unmarshal(respBody, &errResp); err != nil {
-			return nil, fmt.Errorf("request failed with status %d: %s", resp.StatusCode, string(respBody))
-		}
-		return nil, &errResp
-	}
-
-	// 解析成功响应
-	var result ListTemplatesResponse
-	if err := json.Unmarshal(respBody, &result); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &result, nil
 }
 
 // DeleteResponse 删除模板响应
