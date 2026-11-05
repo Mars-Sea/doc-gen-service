@@ -229,11 +229,12 @@ public class DocController {
     public ResponseEntity<byte[]> fillExcelTemplate(@Valid @RequestBody ExcelFillRequest request) {
         log.info(
                 "Received excel fill request, template: {}, fileName: {}, sheetNo: {}, sheetName:"
-                        + " {}",
+                        + " {}, forceNewRow: {}",
                 request.getTemplateName(),
                 request.getFileName(),
                 request.getSheetNo(),
-                request.getSheetName());
+                request.getSheetName(),
+                request.getForceNewRow());
 
         byte[] bytes =
                 excelService.fillTemplate(
@@ -241,7 +242,8 @@ public class DocController {
                         request.getData(),
                         request.getListData(),
                         request.getSheetNo(),
-                        request.getSheetName());
+                        request.getSheetName(),
+                        request.getForceNewRow());
 
         GeneratedDocumentResponse document =
                 GeneratedDocumentResponse.of(bytes, DocumentType.EXCEL_FILL, request.getFileName());

@@ -99,4 +99,25 @@ public class ExcelFillRequest {
      */
     @Schema(description = "指定填充的工作表索引（从 0 开始，可选）", example = "0")
     private Integer sheetNo;
+
+    /**
+     * 列表填充时是否强制新建行（可选，默认 true）
+     *
+     * <p><b>默认 true 的理由：</b>xlsx 解包后 {@code xl/worksheets/sheet1.xml} 超过 100 MB 时， Excel
+     * 打开会提示「部分内容有问题，是否恢复」，恢复过程会丢掉读不下去的行。true 走共享字符串表，两个 XML 都在上限内；false 全部内联，同样数据量下 sheet1.xml
+     * 更大（实测 67,000 行：70.3 MB vs 91.3 MB）。
+     *
+     * <p><b>代价（实测 67,000 行 × 25 列）：</b>true 耗时 26.6 秒；false 耗时 4.1 秒。 选快的那条，代价是可能拿到一个打不开的文件。
+     *
+     * <p><b>何时可传 false：</b>数据量小（约 3 万行以内，视单元格文本长度而定），且模板里列表占位行<b>下方没有</b> 静态内容——false
+     * 是原位扩展，下方内容不会被下推，可能被覆盖。
+     */
+    @Schema(
+            description =
+                    "列表填充是否强制新建行（默认 true）。true 走共享字符串表、产出文件可正常打开；"
+                            + "false 更快但 sheet1.xml 更大，大数据量下可能超出 Excel 的 100MB 单记录上限"
+                            + "导致文件需要修复。数据量小且列表位于模板末尾时可传 false",
+            example = "true",
+            defaultValue = "true")
+    private Boolean forceNewRow;
 }
