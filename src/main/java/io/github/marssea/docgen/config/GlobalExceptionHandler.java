@@ -1,6 +1,8 @@
 package io.github.marssea.docgen.config;
 
+import io.github.marssea.docgen.exception.DocumentGenerationException;
 import io.github.marssea.docgen.exception.InvalidImagePayloadException;
+import io.github.marssea.docgen.exception.PayloadTooLargeException;
 import io.github.marssea.docgen.exception.TemplateNotFoundException;
 import java.io.IOException;
 import java.util.HashMap;
@@ -95,6 +97,43 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * 处理渲染载荷超限异常
+     *
+     * <p>当请求数据超出 {@code docgen.limits} 配置的限额时返回 413 Payload Too Large。 用 413 而非 400：请求本身合法，
+     * 只是量太大，这个区分让调用方知道「减少数据量」比「修正参数」更可能是解法。
+     *
+     * @param e 载荷超限异常
+     * @return HTTP 413 响应
+     */
+    @ExceptionHandler(PayloadTooLargeException.class)
+    public ResponseEntity<Map<String, Object>> handlePayloadTooLarge(PayloadTooLargeException e) {
+        log.warn(
+                "Payload too large: dimension={}, actual={}, limit={}",
+                e.getDimension(),
+                e.getActual(),
+                e.getLimit());
+        return buildErrorResponse(
+                HttpStatus.PAYLOAD_TOO_LARGE, "PAYLOAD_TOO_LARGE", e.getMessage());
+    }
+
+    /**
+     * 处理文档生成资源不足异常
+     *
+     * <p>当生成过程抛出 {@code OutOfMemoryError} 并被就地转为本异常时返回 503 Service Unavailable。 用 503 而非 500：
+     * 这是服务侧的容量问题，重试或降低数据量后可能成功，而不是请求本身的错误。
+     *
+     * @param e 文档生成资源不足异常
+     * @return HTTP 503 响应
+     */
+    @ExceptionHandler(DocumentGenerationException.class)
+    public ResponseEntity<Map<String, Object>> handleDocumentGeneration(
+            DocumentGenerationException e) {
+        log.error("Document generation exhausted resources: {}", e.getMessage(), e.getCause());
+        return buildErrorResponse(
+                HttpStatus.SERVICE_UNAVAILABLE, "RESOURCE_EXHAUSTED", e.getMessage());
+    }
+
+    /**
      * 处理 IO 异常
      *
      * <p>当文件读写操作失败时返回 500 Internal Server Error
@@ -114,7 +153,10 @@ public class GlobalExceptionHandler {
     /**
      * 处理所有未捕获的异常
      *
-     * <p>作为兜底处理器，捕获所有其他类型的异常并返回 500 Internal Server Error
+     * <p>作为兜底处理器，捕获所有其他类型的异常并返回 500 Internal Server Error。
+     *
+     * <p>响应体不透传 {@code e.getMessage()}：底层异常消息常带服务器路径、SQL 片段、上游英文错误码，
+     * 对调用方无意义且属于信息泄露。真实原因已记入日志，响应只给一个可读的概括。
      *
      * @param e 未处理的异常
      * @return HTTP 500 响应
@@ -123,7 +165,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Map<String, Object>> handleException(Exception e) {
         log.error("Unhandled exception occurred", e);
         return buildErrorResponse(
-                HttpStatus.INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "Error: " + e.getMessage());
+                HttpStatus.INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务内部错误，请稍后重试或联系管理员（详情见服务端日志）");
     }
 
     /**

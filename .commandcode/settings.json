@@ -1,9 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "Shell(dir:*)"
-    ],
-    "deny": [],
-    "defaultMode": "default"
-  }
-}

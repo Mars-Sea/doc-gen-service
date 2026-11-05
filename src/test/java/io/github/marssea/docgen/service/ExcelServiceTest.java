@@ -7,6 +7,7 @@ import com.alibaba.excel.ExcelWriter;
 import com.alibaba.excel.write.metadata.WriteSheet;
 import com.sun.net.httpserver.HttpServer;
 import io.github.marssea.docgen.config.DocGenProperties;
+import io.github.marssea.docgen.exception.PayloadTooLargeException;
 import io.github.marssea.docgen.exception.TemplateNotFoundException;
 import io.github.marssea.docgen.template.TemplateRepository;
 import io.github.marssea.docgen.util.ImagePayloadConverter;
@@ -47,7 +48,11 @@ class ExcelServiceTest {
         qrCodePayloadConverter = new QrCodePayloadConverter();
         templateRepository = new TemplateRepository(properties);
         excelService =
-                new ExcelService(templateRepository, imagePayloadConverter, qrCodePayloadConverter);
+                new ExcelService(
+                        templateRepository,
+                        imagePayloadConverter,
+                        qrCodePayloadConverter,
+                        properties);
     }
 
     @Nested
@@ -123,6 +128,27 @@ class ExcelServiceTest {
 
             assertNotNull(result);
             assertTrue(result.length > 0);
+        }
+
+        @Test
+        @DisplayName("行数超限时应抛 PayloadTooLargeException")
+        void shouldRejectTooManyRows() {
+            properties.getLimits().setMaxListRows(2);
+
+            List<String> headers = Arrays.asList("H1", "H2");
+            List<List<Object>> data = new ArrayList<>();
+            for (int i = 0; i < 3; i++) {
+                data.add(Arrays.asList("a" + i, "b" + i));
+            }
+
+            PayloadTooLargeException exception =
+                    assertThrows(
+                            PayloadTooLargeException.class,
+                            () -> excelService.generateExcel("S", headers, data));
+
+            assertEquals(3, exception.getActual());
+            assertEquals(2, exception.getLimit());
+            assertEquals("data 行数", exception.getDimension());
         }
     }
 
@@ -300,6 +326,247 @@ class ExcelServiceTest {
         }
     }
 
+    @Test
+    @DisplayName("相同图片在多行重复出现时只下载一次")
+    void shouldDownloadRepeatedImageOnlyOnce() throws Exception {
+        Path templatePath = tempDir.resolve("list-image-template.xlsx");
+        createListImageExcelTemplate(templatePath);
+
+        int[] requestCount = {0};
+        HttpServer server = HttpServer.create(new InetSocketAddress(0), 0);
+        server.createContext(
+                "/logo.png",
+                exchange -> {
+                    requestCount[0]++;
+                    exchange.getResponseHeaders().add("Content-Type", "image/png");
+                    exchange.sendResponseHeaders(200, TEST_PNG_BYTES.length);
+                    exchange.getResponseBody().write(TEST_PNG_BYTES);
+                    exchange.close();
+                });
+        server.start();
+        try {
+            String url = "http://localhost:" + server.getAddress().getPort() + "/logo.png";
+            List<Map<String, Object>> rows = new ArrayList<>();
+            for (int i = 0; i < 5; i++) {
+                Map<String, Object> row = new HashMap<>();
+                row.put("name", "Item " + i);
+                row.put("logo", Map.of("type", "image", "url", url, "format", "png"));
+                rows.add(row);
+            }
+
+            excelService.fillTemplate("list-image-template.xlsx", null, Map.of("items", rows));
+
+            // 五行的 logo 是同一个 URL，缓存命中后只应发生一次 HTTP 请求
+            assertEquals(1, requestCount[0], "同一 URL 的图片应只下载一次");
+        } finally {
+            server.stop(0);
+        }
+    }
+
+    @Test
+    @DisplayName("不同 URL 指向相同字节时堆内只保留一份图片")
+    void shouldDeduplicateIdenticalImageBytesFromDifferentUrls() throws Exception {
+        Path templatePath = tempDir.resolve("list-image-template.xlsx");
+        createListImageExcelTemplate(templatePath);
+
+        HttpServer server = HttpServer.create(new InetSocketAddress(0), 0);
+        // 两个路径返回完全相同的字节，模拟 CDN 多域名指向同一资源
+        for (String path : List.of("/a.png", "/b.png")) {
+            server.createContext(
+                    path,
+                    exchange -> {
+                        exchange.getResponseHeaders().add("Content-Type", "image/png");
+                        exchange.sendResponseHeaders(200, TEST_PNG_BYTES.length);
+                        exchange.getResponseBody().write(TEST_PNG_BYTES);
+                        exchange.close();
+                    });
+        }
+        server.start();
+        try {
+            String base = "http://localhost:" + server.getAddress().getPort();
+            List<Map<String, Object>> rows = new ArrayList<>();
+            for (String path : List.of("/a.png", "/b.png")) {
+                Map<String, Object> row = new HashMap<>();
+                row.put("name", path);
+                row.put("logo", Map.of("type", "image", "url", base + path, "format", "png"));
+                rows.add(row);
+            }
+
+            // 两个不同 URL、相同字节：填充应正常完成（去重不能影响渲染结果）
+            byte[] result =
+                    excelService.fillTemplate(
+                            "list-image-template.xlsx", null, Map.of("items", rows));
+
+            try (XSSFWorkbook workbook = new XSSFWorkbook(new ByteArrayInputStream(result))) {
+                assertEquals(2, workbook.getAllPictures().size());
+            }
+        } finally {
+            server.stop(0);
+        }
+    }
+
+    @Nested
+    @DisplayName("限额校验测试")
+    class LimitsTest {
+
+        @Test
+        @DisplayName("未配置限额时不应拦下任何数据量")
+        void shouldAllowAnySizeWhenLimitsDisabled() throws Exception {
+            Path templatePath = tempDir.resolve("list-image-template.xlsx");
+            createListImageExcelTemplate(templatePath);
+
+            List<Map<String, Object>> rows = new ArrayList<>();
+            for (int i = 0; i < 200; i++) {
+                rows.add(Map.of("name", "Item " + i));
+            }
+
+            // 默认 limits 全部为 -1，200 行应正常通过
+            byte[] result =
+                    excelService.fillTemplate(
+                            "list-image-template.xlsx", null, Map.of("items", rows));
+            assertTrue(result.length > 0);
+        }
+
+        @Test
+        @DisplayName("列表行数超限时应抛 PayloadTooLargeException")
+        void shouldRejectTooManyListRows() throws Exception {
+            Path templatePath = tempDir.resolve("list-image-template.xlsx");
+            createListImageExcelTemplate(templatePath);
+            properties.getLimits().setMaxListRows(3);
+
+            List<Map<String, Object>> rows = new ArrayList<>();
+            for (int i = 0; i < 4; i++) {
+                rows.add(Map.of("name", "Item " + i));
+            }
+
+            PayloadTooLargeException exception =
+                    assertThrows(
+                            PayloadTooLargeException.class,
+                            () ->
+                                    excelService.fillTemplate(
+                                            "list-image-template.xlsx",
+                                            null,
+                                            Map.of("items", rows)));
+
+            assertEquals(4, exception.getActual());
+            assertEquals(3, exception.getLimit());
+            assertTrue(exception.getDimension().contains("items"));
+        }
+
+        @Test
+        @DisplayName("单值字段数超限时应抛 PayloadTooLargeException")
+        void shouldRejectTooManyDataFields() throws Exception {
+            Path templatePath = tempDir.resolve("image-template.xlsx");
+            createImageExcelTemplate(templatePath);
+            properties.getLimits().setMaxDataFields(1);
+
+            Map<String, Object> data = new HashMap<>();
+            data.put("title", "T");
+            data.put("date", "D");
+
+            assertThrows(
+                    PayloadTooLargeException.class,
+                    () -> excelService.fillTemplate("image-template.xlsx", data, null));
+        }
+
+        @Test
+        @DisplayName("图片张数超限时应抛 PayloadTooLargeException")
+        void shouldRejectTooManyImages() throws Exception {
+            Path templatePath = tempDir.resolve("list-image-template.xlsx");
+            createListImageExcelTemplate(templatePath);
+            properties.getLimits().setMaxImageCount(1);
+
+            HttpServer server = startImageServer();
+            try {
+                String url = "http://localhost:" + server.getAddress().getPort() + "/logo.png";
+                List<Map<String, Object>> rows = new ArrayList<>();
+                for (int i = 0; i < 2; i++) {
+                    Map<String, Object> row = new HashMap<>();
+                    row.put("name", "Item " + i);
+                    row.put("logo", Map.of("type", "image", "url", url, "format", "png"));
+                    rows.add(row);
+                }
+
+                PayloadTooLargeException exception =
+                        assertThrows(
+                                PayloadTooLargeException.class,
+                                () ->
+                                        excelService.fillTemplate(
+                                                "list-image-template.xlsx",
+                                                null,
+                                                Map.of("items", rows)));
+
+                assertEquals(2, exception.getActual());
+            } finally {
+                server.stop(0);
+            }
+        }
+    }
+
+    /** 创建含 {title} / {logo} 单值填充单元格的 Excel 模板 */
+    @Nested
+    @DisplayName("forceNewRow 参数测试")
+    class ForceNewRowTest {
+
+        @Test
+        @DisplayName("不传 forceNewRow 时按 true 处理（走共享字符串表，产出可正常打开）")
+        void shouldDefaultToTrueWhenNull() throws Exception {
+            Path templatePath = tempDir.resolve("list-image-template.xlsx");
+            createListImageExcelTemplate(templatePath);
+
+            List<Map<String, Object>> rows = new ArrayList<>();
+            for (int i = 0; i < 3; i++) {
+                rows.add(Map.of("name", "Item " + i));
+            }
+
+            byte[] result =
+                    excelService.fillTemplate(
+                            "list-image-template.xlsx",
+                            null,
+                            Map.of("items", rows),
+                            null,
+                            null,
+                            null);
+
+            assertTrue(result.length > 0);
+        }
+
+        @Test
+        @DisplayName("forceNewRow=false 与 =true 都能产出有效文档")
+        void shouldProduceValidDocumentInBothModes() throws Exception {
+            Path templatePath = tempDir.resolve("list-image-template.xlsx");
+            createListImageExcelTemplate(templatePath);
+
+            List<Map<String, Object>> rows = new ArrayList<>();
+            for (int i = 0; i < 3; i++) {
+                rows.add(Map.of("name", "Item " + i));
+            }
+
+            byte[] withoutForce =
+                    excelService.fillTemplate(
+                            "list-image-template.xlsx",
+                            null,
+                            Map.of("items", rows),
+                            null,
+                            null,
+                            false);
+            byte[] withForce =
+                    excelService.fillTemplate(
+                            "list-image-template.xlsx",
+                            null,
+                            Map.of("items", rows),
+                            null,
+                            null,
+                            true);
+
+            for (byte[] bytes : List.of(withoutForce, withForce)) {
+                try (XSSFWorkbook workbook = new XSSFWorkbook(new ByteArrayInputStream(bytes))) {
+                    assertNotNull(workbook.getSheetAt(0));
+                }
+            }
+        }
+    }
+
     private void createImageExcelTemplate(Path path) throws IOException {
         try (FileOutputStream out = new FileOutputStream(path.toFile());
                 ExcelWriter excelWriter = EasyExcel.write(out).build()) {
@@ -314,7 +581,7 @@ class ExcelServiceTest {
         }
     }
 
-    /** 创建含 {name} / {logo} 列表填充行的 Excel 模板 */
+    /** 创建含 {.name} / {.logo} 列表填充行的 Excel 模板 */
     private void createListImageExcelTemplate(Path path) throws IOException {
         try (FileOutputStream out = new FileOutputStream(path.toFile());
                 ExcelWriter excelWriter = EasyExcel.write(out).build()) {
